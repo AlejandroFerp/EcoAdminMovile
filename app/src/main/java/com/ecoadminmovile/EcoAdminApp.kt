@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -67,6 +68,7 @@ private val topLevelDestinations = listOf(
     TopLevelDestination(route = "perfil", title = "Perfil", icon = Icons.Default.Person)
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
     val appState by appViewModel.uiState.collectAsStateWithLifecycle()
@@ -81,7 +83,6 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
                 state = loginState,
                 onEmailChanged = loginViewModel::updateEmail,
                 onPasswordChanged = loginViewModel::updatePassword,
-                onBaseUrlChanged = loginViewModel::updateBaseUrl,
                 onLoginClick = {
                     loginViewModel.submit {
                         appViewModel.refreshSession(showErrorOnFailure = true)

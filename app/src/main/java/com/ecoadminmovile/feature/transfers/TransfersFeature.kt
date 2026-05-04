@@ -1,27 +1,28 @@
 package com.ecoadminmovile.feature.transfers
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ecoadminmovile.core.model.TrasladoDto
 import com.ecoadminmovile.data.TransfersRepository
+import com.ecoadminmovile.ui.components.EcoCard
+import com.ecoadminmovile.ui.components.EcoStatusPill
+import com.ecoadminmovile.ui.theme.EcoTextMuted
+import com.ecoadminmovile.ui.theme.EcoTextStrong
+import com.ecoadminmovile.ui.theme.EcoTextSubtle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -118,28 +119,23 @@ fun TransfersScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "Traslados",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Text(
-                        text = "Listado conectado a /api/traslados con detalle basico por envio.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Button(onClick = onRefresh) {
-                    Text(text = if (state.isLoading) "Cargando" else "Recargar")
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Traslados",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EcoTextStrong
+                )
+                Text(
+                    text = "Listado de envios registrados en el sistema",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EcoTextSubtle
+                )
             }
         }
 
@@ -162,85 +158,87 @@ fun TransfersScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransferDetailScreen(
     state: TransferDetailUiState,
     onBack: () -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            OutlinedButton(onClick = onBack) {
-                Text(text = "Volver")
-            }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(text = state.transfer?.codigo ?: "Detalle") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Volver")
+                    }
+                }
+            )
         }
-
-        if (state.errorMessage != null) {
-            item {
-                Text(
-                    text = state.errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-
-        state.transfer?.let { transfer ->
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (state.errorMessage != null) {
+                item {
+                    Text(
+                        text = state.errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
                     )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = transfer.codigo,
-                            style = MaterialTheme.typography.headlineMedium
-                        )
-                        Text(
-                            text = "Estado: ${transfer.estado}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "Centro productor: ${transfer.centroProductor?.nombre.orEmpty()}",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "Centro gestor: ${transfer.centroGestor?.nombre.orEmpty()}",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "Residuo: ${transfer.residuo?.codigo.orEmpty()} ${transfer.residuo?.descripcion.orEmpty()}",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "Transportista: ${transfer.transportista?.nombre.orEmpty()}",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "Creado: ${transfer.fechaCreacion.orEmpty()}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Inicio transporte: ${transfer.fechaInicioTransporte.orEmpty()}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "Entrega: ${transfer.fechaEntrega.orEmpty()}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        if (!transfer.observaciones.isNullOrBlank()) {
-                            Text(
-                                text = "Observaciones: ${transfer.observaciones}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                }
+            }
+
+            state.transfer?.let { transfer ->
+                item {
+                    EcoCard {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = transfer.codigo,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                EcoStatusPill(status = transfer.estado)
+                            }
+                            
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+                            DetailItem("Productor", transfer.centroProductor?.nombre.orEmpty())
+                            DetailItem("Gestor", transfer.centroGestor?.nombre.orEmpty())
+                            DetailItem("Residuo", "${transfer.residuo?.codigo.orEmpty()} - ${transfer.residuo?.descripcion.orEmpty()}")
+                            DetailItem("Transportista", transfer.transportista?.nombre.orEmpty())
+                            
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+                            DetailItem("Creado", transfer.fechaCreacion.orEmpty())
+                            DetailItem("Inicio transporte", transfer.fechaInicioTransporte.orEmpty())
+                            DetailItem("Entrega", transfer.fechaEntrega.orEmpty())
+                            
+                            if (!transfer.observaciones.isNullOrBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = "Observaciones",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = transfer.observaciones,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = EcoTextMuted
+                                )
+                            }
                         }
                     }
                 }
@@ -250,45 +248,84 @@ fun TransferDetailScreen(
 }
 
 @Composable
+private fun DetailItem(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = EcoTextSubtle
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = EcoTextStrong
+        )
+    }
+}
+
+@Composable
 private fun TransferCard(
     transfer: TrasladoDto,
     onClick: () -> Unit
 ) {
-    Card(
+    EcoCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            .clickable(onClick = onClick)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = transfer.codigo,
-                    style = MaterialTheme.typography.titleMedium
+                    text = "#${transfer.id}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EcoTextSubtle,
+                    fontWeight = FontWeight.Bold
                 )
+                EcoStatusPill(status = transfer.estado)
+            }
+            
+            Text(
+                text = transfer.centroProductor?.nombre.orEmpty(),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = EcoTextStrong
+            )
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(4.dp).background(EcoTextSubtle, CircleShape))
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    text = transfer.estado,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    text = transfer.centroGestor?.nombre.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EcoTextMuted
                 )
             }
-            Text(
-                text = "${transfer.centroProductor?.nombre.orEmpty()} -> ${transfer.centroGestor?.nombre.orEmpty()}",
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = "Residuo ${transfer.residuo?.codigo.orEmpty()} ${transfer.residuo?.cantidad ?: 0.0} ${transfer.residuo?.unidad.orEmpty()}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "LER ${transfer.residuo?.codigo.orEmpty()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EcoTextSubtle,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = transfer.fechaCreacion?.take(10).orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EcoTextSubtle
+                )
+            }
         }
     }
 }

@@ -1,34 +1,35 @@
 package com.ecoadminmovile.feature.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ecoadminmovile.core.preferences.AppPreferences
 import com.ecoadminmovile.data.AuthRepository
-import com.ecoadminmovile.ui.theme.EcoBlue
-import com.ecoadminmovile.ui.theme.EcoMint
-import com.ecoadminmovile.ui.theme.EcoSlate
+import com.ecoadminmovile.ui.theme.EcoTextMuted
+import com.ecoadminmovile.ui.theme.EcoTextStrong
+import com.ecoadminmovile.ui.theme.EcoTextSubtle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,10 +38,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+val EcoLoginGreen = Color(0xFF1A6B3C)
+val EcoLoginGradient = listOf(Color(0xFF145A32), Color(0xFF1A6B3C), Color(0xFF2D9E5F))
+
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
-    val baseUrl: String = AppPreferences.DEFAULT_BASE_URL,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -49,9 +52,7 @@ data class LoginUiState(
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(
-        LoginUiState(baseUrl = authRepository.currentBaseUrl())
-    )
+    private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun updateEmail(value: String) {
@@ -60,10 +61,6 @@ class LoginViewModel @Inject constructor(
 
     fun updatePassword(value: String) {
         _uiState.update { it.copy(password = value, errorMessage = null) }
-    }
-
-    fun updateBaseUrl(value: String) {
-        _uiState.update { it.copy(baseUrl = value, errorMessage = null) }
     }
 
     fun submit(onSuccess: () -> Unit) {
@@ -75,14 +72,7 @@ class LoginViewModel @Inject constructor(
         }
 
         if (currentState.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Introduce tu contrasena.") }
-            return
-        }
-
-        val normalizedBaseUrl = try {
-            AppPreferences.normalizeBaseUrl(currentState.baseUrl)
-        } catch (_: IllegalArgumentException) {
-            _uiState.update { it.copy(errorMessage = "La URL del backend no es valida.") }
+            _uiState.update { it.copy(errorMessage = "Introduce tu contraseña.") }
             return
         }
 
@@ -91,8 +81,7 @@ class LoginViewModel @Inject constructor(
 
             authRepository.login(
                 email = currentState.email,
-                password = currentState.password,
-                baseUrl = normalizedBaseUrl
+                password = currentState.password
             ).fold(
                 onSuccess = {
                     _uiState.update {
@@ -118,109 +107,174 @@ fun LoginScreen(
     state: LoginUiState,
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
-    onBaseUrlChanged: (String) -> Unit,
     onLoginClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(EcoSlate, EcoBlue, EcoMint)
-                )
-            )
-            .padding(24.dp)
+            .background(brush = Brush.linearGradient(colors = EcoLoginGradient)),
+        contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.94f))
         ) {
-            Text(
-                text = "EcoAdmin Movile",
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Operacion movil para traslados, centros y seguimiento en tiempo real.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.86f)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp)
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 28.dp, vertical = 36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(24.dp)
+                // Logo Circle
+                Surface(
+                    modifier = Modifier.size(96.dp),
+                    shape = CircleShape,
+                    color = Color.White,
+                    shadowElevation = 2.dp
                 ) {
-                    Text(
-                        text = "Conectar con el backend actual",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Usa 10.0.2.2 si ejecutas el backend en tu maquina y pruebas desde el emulador Android.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    OutlinedTextField(
-                        value = state.baseUrl,
-                        onValueChange = onBaseUrlChanged,
-                        label = { Text(text = "Servidor") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = state.email,
-                        onValueChange = onEmailChanged,
-                        label = { Text(text = "Email") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = state.password,
-                        onValueChange = onPasswordChanged,
-                        label = { Text(text = "Contrasena") },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (state.errorMessage != null) {
-                        Text(
-                            text = state.errorMessage,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Start
+                    Box(contentAlignment = Alignment.Center) {
+                        // Assuming logo is available, if not use a fallback icon
+                        Icon(
+                            imageVector = Icons.Rounded.Person,
+                            contentDescription = null,
+                            tint = EcoLoginGreen,
+                            modifier = Modifier.size(64.dp)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    Button(
-                        onClick = onLoginClick,
-                        enabled = !state.isLoading,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (state.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.height(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Text(text = "Iniciar sesion")
-                        }
                     }
                 }
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Bienvenido a",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EcoTextSubtle
+                    )
+                    Text(
+                        text = "EcoAdmin",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EcoLoginGreen,
+                        letterSpacing = (-1).sp
+                    )
+                    Text(
+                        text = "Inicia sesión con tu cuenta",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EcoTextSubtle
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (state.errorMessage != null) {
+                    Surface(
+                        color = Color(0xFFFEF2F2),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color(0xFFFECACA), RoundedCornerShape(8.dp)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = state.errorMessage,
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFB91C1C),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                LoginTextField(
+                    value = state.email,
+                    onValueChange = onEmailChanged,
+                    label = "Email",
+                    icon = Icons.Rounded.Email
+                )
+
+                LoginTextField(
+                    value = state.password,
+                    onValueChange = onPasswordChanged,
+                    label = "Contraseña",
+                    icon = Icons.Rounded.Lock,
+                    isPassword = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onLoginClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = EcoLoginGreen),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                ) {
+                    if (state.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                    } else {
+                        Text(
+                            text = "INGRESAR",
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                HorizontalDivider(color = Color(0xFFE2E8F0))
+                
+                Text(
+                    text = "Registrarse",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EcoLoginGreen,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                
+                Text(
+                    text = "EcoAdmin · Gestión de residuos",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 10.sp,
+                    color = EcoTextSubtle
+                )
             }
         }
     }
+}
+
+@Composable
+fun LoginTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    icon: ImageVector,
+    isPassword: Boolean = false
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(text = label) },
+        leadingIcon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = EcoLoginGreen,
+                modifier = Modifier.size(20.dp)
+            )
+        },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = EcoLoginGreen,
+            unfocusedBorderColor = Color(0xFFC8D6CF),
+            focusedLabelColor = EcoLoginGreen,
+            unfocusedLabelColor = Color(0xFF6B7D72)
+        )
+    )
 }

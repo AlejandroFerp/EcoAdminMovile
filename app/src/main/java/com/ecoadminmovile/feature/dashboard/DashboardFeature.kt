@@ -1,25 +1,27 @@
 package com.ecoadminmovile.feature.dashboard
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ecoadminmovile.core.model.EstadisticasDto
 import com.ecoadminmovile.data.DashboardRepository
+import com.ecoadminmovile.ui.components.EcoCard
+import com.ecoadminmovile.ui.components.EcoMetricCard
+import com.ecoadminmovile.ui.theme.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,38 +70,26 @@ fun DashboardScreen(
     state: DashboardUiState,
     onRefresh: () -> Unit
 ) {
-    val cards = listOf(
-        "Centros" to state.data.totalCentros.toString(),
-        "Residuos" to state.data.totalResiduos.toString(),
-        "Pendientes" to state.data.trasladosPendientes.toString(),
-        "En transito" to state.data.trasladosEnTransito.toString(),
-        "Entregados" to state.data.trasladosEntregados.toString(),
-        "Completados" to state.data.trasladosCompletados.toString()
-    )
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Resumen operativo",
-                    style = MaterialTheme.typography.headlineSmall
+                    text = "Panel de Control",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EcoTextStrong
                 )
                 Text(
-                    text = "Este panel consume /api/estadisticas para ofrecer una vista rapida del estado del sistema.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Resumen del sistema EcoAdmin",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EcoTextSubtle
                 )
-            }
-        }
-
-        item {
-            Button(onClick = onRefresh) {
-                Text(text = if (state.isLoading) "Actualizando..." else "Actualizar metricas")
             }
         }
 
@@ -113,84 +103,159 @@ fun DashboardScreen(
             }
         }
 
-        items(cards.chunked(2)) { pair ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                pair.forEach { (title, value) ->
-                    MetricCard(
-                        title = title,
-                        value = value,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+        item {
+            EcoMetricCard(
+                title = "Centros registrados",
+                value = state.data.totalCentros.toString(),
+                icon = Icons.Rounded.Business,
+                iconBgColor = Color(0xFFEBF2FF),
+                iconColor = EcoPrimary,
+                badgeText = "activo"
+            )
+        }
 
-                if (pair.size == 1) {
-                    Column(modifier = Modifier.weight(1f)) {}
+        item {
+            EcoMetricCard(
+                title = "Residuos catalogados",
+                value = state.data.totalResiduos.toString(),
+                icon = Icons.Rounded.Autorenew,
+                iconBgColor = Color(0xFFFFF7ED),
+                iconColor = Color(0xFFF97316),
+                badgeText = "peligroso",
+                badgeColor = Color(0xFFC2410C),
+                badgeBgColor = Color(0xFFFFEDD5)
+            )
+        }
+
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                EcoMetricCard(
+                    title = "En curso",
+                    value = state.data.trasladosEnTransito.toString(),
+                    icon = Icons.Rounded.SwapHoriz,
+                    iconBgColor = Color(0xFFFEFCE8),
+                    iconColor = Color(0xFFEAB308),
+                    modifier = Modifier.weight(1f)
+                )
+                EcoMetricCard(
+                    title = "Completados",
+                    value = state.data.trasladosCompletados.toString(),
+                    icon = Icons.Rounded.CheckCircle,
+                    iconBgColor = Color(0xFFECFDF5),
+                    iconColor = Color(0xFF10B981),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        item {
+            Text(
+                text = "Traslados por estado",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = EcoTextStrong,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        item {
+            EcoCard {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    val total = (state.data.trasladosPendientes + state.data.trasladosEnTransito + 
+                                state.data.trasladosEntregados + state.data.trasladosCompletados).coerceAtLeast(1)
+                    
+                    StatusProgressRow("Pendiente", state.data.trasladosPendientes, total, EcoPendingDot)
+                    StatusProgressRow("En tránsito", state.data.trasladosEnTransito, total, EcoTransitDot)
+                    StatusProgressRow("Entregado", state.data.trasladosEntregados, total, EcoDeliveredDot)
+                    StatusProgressRow("Completado", state.data.trasladosCompletados, total, EcoCompletedDot)
                 }
             }
         }
 
         item {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+            Button(
+                onClick = onRefresh,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = EcoPrimary)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Distribucion de residuos por centro",
-                        style = MaterialTheme.typography.titleMedium
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
                     )
-                    if (state.data.residuosPorCentro.isEmpty()) {
-                        Text(
-                            text = "No hay datos agregados todavia.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    } else {
-                        state.data.residuosPorCentro.forEach { (name, total) ->
-                            Text(
-                                text = "$name: $total",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
+                    Spacer(Modifier.width(8.dp))
                 }
+                Text(text = "Actualizar datos")
             }
         }
     }
 }
 
 @Composable
-private fun MetricCard(
-    title: String,
-    value: String,
-    modifier: Modifier = Modifier
+fun StatusProgressRow(
+    label: String,
+    value: Int,
+    total: Int,
+    color: Color
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    val progress = value.toFloat() / total.toFloat()
+    val percentage = (progress * 100).toInt()
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(modifier = Modifier.size(10.dp).background(color, CircleShape))
             Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = EcoTextMuted,
+                modifier = Modifier.weight(1f)
             )
             Text(
-                text = value,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                text = "$value ($percentage%)",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = EcoTextStrong
             )
         }
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp),
+            color = color,
+            trackColor = EcoBg,
+            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DashboardScreenPreview() {
+    EcoAdminTheme {
+        DashboardScreen(
+            state = DashboardUiState(
+                isLoading = false,
+                data = EstadisticasDto(
+                    totalCentros = 12,
+                    totalResiduos = 45,
+                    trasladosPendientes = 5,
+                    trasladosEnTransito = 3,
+                    trasladosEntregados = 2,
+                    trasladosCompletados = 35
+                )
+            ),
+            onRefresh = {}
+        )
     }
 }

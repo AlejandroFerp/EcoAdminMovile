@@ -15,12 +15,9 @@ class AuthRepository(
     private val api: EcoAdminApi,
     private val preferences: AppPreferences
 ) {
-    fun currentBaseUrl(): String = preferences.getBaseUrl()
-
     fun hasActiveSession(): Boolean = preferences.hasSessionCookie()
 
-    suspend fun login(email: String, password: String, baseUrl: String): Result<Unit> {
-        preferences.setBaseUrl(baseUrl)
+    suspend fun login(email: String, password: String): Result<Unit> {
         preferences.clearSession()
 
         return try {

@@ -36,7 +36,6 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        preferences: AppPreferences,
         cookieJar: SessionCookieJar
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -51,7 +50,7 @@ object NetworkModule {
             .followRedirects(false)
             .followSslRedirects(false)
             .cookieJar(cookieJar)
-            .addInterceptor(ServerUrlInterceptor(preferences))
+            .addInterceptor(ServerUrlInterceptor())
             .addInterceptor(loggingInterceptor)
             .build()
     }

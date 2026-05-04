@@ -16,7 +16,6 @@ data class AppUiState(
     val isLoading: Boolean = true,
     val isAuthenticated: Boolean = false,
     val profile: UsuarioPerfilDto? = null,
-    val baseUrl: String = "",
     val errorMessage: String? = null
 )
 
@@ -28,7 +27,6 @@ class AppViewModel @Inject constructor(
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
     init {
-        _uiState.update { it.copy(baseUrl = authRepository.currentBaseUrl()) }
         refreshSession(showErrorOnFailure = false)
     }
 
@@ -48,8 +46,7 @@ class AppViewModel @Inject constructor(
                     _uiState.value = AppUiState(
                         isLoading = false,
                         isAuthenticated = true,
-                        profile = profile,
-                        baseUrl = authRepository.currentBaseUrl()
+                        profile = profile
                     )
                 },
                 onFailure = { throwable ->

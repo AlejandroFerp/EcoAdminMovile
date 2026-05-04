@@ -1,21 +1,20 @@
 package com.ecoadminmovile.core.network
 
-import com.ecoadminmovile.core.preferences.AppPreferences
+import com.ecoadminmovile.BuildConfig
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.Response
-import okhttp3.toHttpUrl
 
-class ServerUrlInterceptor(
-    private val preferences: AppPreferences
-) : Interceptor {
+class ServerUrlInterceptor : Interceptor {
+    private val baseUrl = BuildConfig.BASE_URL.toHttpUrl()
+
     override fun intercept(chain: Interceptor.Chain): Response {
-        val currentBaseUrl = preferences.getBaseUrl().toHttpUrl()
         val originalRequest = chain.request()
         val originalUrl = originalRequest.url
         val rewrittenUrl = originalUrl.newBuilder()
-            .scheme(currentBaseUrl.scheme)
-            .host(currentBaseUrl.host)
-            .port(currentBaseUrl.port)
+            .scheme(baseUrl.scheme)
+            .host(baseUrl.host)
+            .port(baseUrl.port)
             .build()
 
         return chain.proceed(

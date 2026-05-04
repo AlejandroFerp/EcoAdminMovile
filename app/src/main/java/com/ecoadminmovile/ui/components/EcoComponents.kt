@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,6 +15,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ecoadminmovile.ui.theme.*
@@ -144,6 +147,36 @@ fun EcoMetricCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun EcoStatusPillPreview() {
+    EcoAdminTheme {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            EcoStatusPill(status = "PENDIENTE")
+            EcoStatusPill(status = "EN_TRANSITO")
+            EcoStatusPill(status = "ENTREGADO")
+            EcoStatusPill(status = "COMPLETADO")
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun EcoMetricCardPreview() {
+    EcoAdminTheme {
+        Box(Modifier.padding(16.dp)) {
+            EcoMetricCard(
+                title = "Centros registrados",
+                value = "12",
+                icon = Icons.Rounded.Business,
+                iconBgColor = Color(0xFFEBF2FF),
+                iconColor = EcoPrimary,
+                badgeText = "activo"
+            )
         }
     }
 }

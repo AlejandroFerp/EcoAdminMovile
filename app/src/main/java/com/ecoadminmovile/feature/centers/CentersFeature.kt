@@ -1,24 +1,30 @@
 package com.ecoadminmovile.feature.centers
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ecoadminmovile.core.model.CentroDto
 import com.ecoadminmovile.data.CentersRepository
+import com.ecoadminmovile.ui.components.EcoCard
+import com.ecoadminmovile.ui.theme.EcoTextMuted
+import com.ecoadminmovile.ui.theme.EcoTextStrong
+import com.ecoadminmovile.ui.theme.EcoTextSubtle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -70,23 +76,23 @@ fun CentersScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = "Centros",
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EcoTextStrong
                 )
                 Text(
-                    text = "Vista movil inicial para productores y gestores conectada a /api/centros.",
+                    text = "Gestión de productores y gestores",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = EcoTextSubtle
                 )
-                Button(onClick = onRefresh) {
-                    Text(text = if (state.isLoading) "Actualizando" else "Actualizar centros")
-                }
             }
         }
 
@@ -101,38 +107,95 @@ fun CentersScreen(
         }
 
         items(state.centers, key = { center -> center.id }) { center ->
-            Card(
+            CenterCard(center = center)
+        }
+
+        item {
+            Button(
+                onClick = onRefresh,
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(text = "Actualizar centros")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CenterCard(center: CentroDto) {
+    EcoCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = center.nombre,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = EcoTextStrong
+                )
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.small
                 ) {
                     Text(
-                        text = center.nombre,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Codigo: ${center.codigo}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "Tipo: ${center.tipo.orEmpty()}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "Direccion: ${listOfNotNull(center.direccion?.calle, center.direccion?.ciudad).joinToString()}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "Contacto: ${center.nombreContacto.orEmpty()} ${center.telefono.orEmpty()}",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = center.tipo.orEmpty(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
+            
+            Text(
+                text = "NIMA: ${center.nima ?: "N/A"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = EcoTextSubtle
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+            ContactInfoRow(Icons.Rounded.LocationOn, listOfNotNull(center.direccion?.calle, center.direccion?.ciudad).joinToString(", "))
+            ContactInfoRow(Icons.Rounded.Person, center.nombreContacto.orEmpty())
+            ContactInfoRow(Icons.Rounded.Phone, center.telefono.orEmpty())
+            ContactInfoRow(Icons.Rounded.Email, center.email.orEmpty())
         }
+    }
+}
+
+@Composable
+private fun ContactInfoRow(icon: ImageVector, text: String) {
+    if (text.isBlank()) return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = EcoTextSubtle
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = EcoTextMuted
+        )
     }
 }
