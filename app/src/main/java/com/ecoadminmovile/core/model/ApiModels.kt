@@ -30,10 +30,14 @@ data class TrasladoDto(
     val centroGestor: CentroResumenDto? = null,
     val residuo: ResiduoResumenDto? = null,
     val transportista: UsuarioResumenDto? = null,
+    val ruta: RutaResumenDto? = null,
     val estado: String = "",
     val fechaCreacion: String? = null,
     val fechaInicioTransporte: String? = null,
     val fechaEntrega: String? = null,
+    val fechaProgramadaInicio: String? = null,
+    val fechaProgramadaFin: String? = null,
+    val fechaUltimoCambioEstado: String? = null,
     val observaciones: String? = null
 )
 
@@ -79,5 +83,52 @@ data class DireccionDto(
     val ciudad: String? = null,
     val provincia: String? = null,
     val codigoPostal: String? = null,
-    val pais: String? = null
+    val pais: String? = null,
+    val latitud: Double? = null,
+    val longitud: Double? = null
+)
+
+data class RutaResumenDto(
+    val id: Long = 0,
+    val nombre: String? = null,
+    val distanciaKm: Double? = null,
+    val origenLatitud: Double? = null,
+    val origenLongitud: Double? = null,
+    val destinoLatitud: Double? = null,
+    val destinoLongitud: Double? = null
+)
+
+data class RutaDto(
+    val id: Long = 0,
+    val nombre: String = "",
+    val distanciaKm: Double? = null,
+    val transportista: UsuarioResumenDto? = null
+)
+
+data class ResiduoDto(
+    val id: Long = 0,
+    val codigoLER: String? = null,
+    val descripcion: String? = null,
+    val cantidad: Double? = null,
+    val unidad: String? = null
+)
+
+data class HistorialEventoDto(
+    val id: Long = 0,
+    val estadoAnterior: String? = null,
+    val estadoNuevo: String = "",
+    val comentario: String? = null,
+    val fecha: String? = null,
+    val usuario: UsuarioResumenDto? = null
+)
+
+data class TrasladoCreateDto(
+    val centroProductorId: Long,
+    val centroGestorId: Long,
+    val residuoId: Long,
+    val transportistaId: Long? = null,
+    val rutaId: Long? = null,
+    val observaciones: String? = null,
+    val fechaProgramadaInicio: String? = null,
+    val fechaProgramadaFin: String? = null
 )

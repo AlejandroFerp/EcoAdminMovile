@@ -3,6 +3,7 @@ package com.ecoadminmovile.core.di
 import com.ecoadminmovile.core.network.EcoAdminApi
 import com.ecoadminmovile.core.preferences.AppPreferences
 import com.ecoadminmovile.data.AuthRepository
+import com.ecoadminmovile.data.CatalogRepository
 import com.ecoadminmovile.data.CentersRepository
 import com.ecoadminmovile.data.DashboardRepository
 import com.ecoadminmovile.data.TransfersRepository
@@ -38,5 +39,11 @@ object DataModule {
     @Singleton
     fun provideCentersRepository(api: EcoAdminApi): CentersRepository {
         return CentersRepository(api = api)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCatalogRepository(api: EcoAdminApi): CatalogRepository {
+        return CatalogRepository(api = api)
     }
 }

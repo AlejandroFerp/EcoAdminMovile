@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,16 +32,23 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private val TRANSFER_STATES = listOf("PENDIENTE", "EN_TRANSITO", "ENTREGADO", "COMPLETADO")
+
 data class TransfersUiState(
     val isLoading: Boolean = true,
     val transfers: List<TrasladoDto> = emptyList(),
+    val filteredTransfers: List<TrasladoDto> = emptyList(),
+    val searchQuery: String = "",
+    val selectedStatus: String? = null,
     val errorMessage: String? = null
 )
 
 data class TransferDetailUiState(
     val isLoading: Boolean = true,
     val transfer: TrasladoDto? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isUpdatingStatus: Boolean = false,
+    val showStatusSheet: Boolean = false
 )
 
 @HiltViewModel
@@ -59,18 +67,47 @@ class TransfersViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             repository.loadTransfers().fold(
                 onSuccess = { transfers ->
-                    _uiState.value = TransfersUiState(
-                        isLoading = false,
-                        transfers = transfers
-                    )
+                    _uiState.update {
+                        it.copy(isLoading = false, transfers = transfers)
+                    }
+                    applyFilters()
                 },
                 onFailure = { throwable ->
-                    _uiState.value = TransfersUiState(
-                        isLoading = false,
-                        errorMessage = throwable.message
-                    )
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = throwable.message)
+                    }
                 }
             )
+        }
+    }
+
+    fun updateSearch(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        applyFilters()
+    }
+
+    fun filterByStatus(status: String?) {
+        _uiState.update {
+            it.copy(selectedStatus = if (it.selectedStatus == status) null else status)
+        }
+        applyFilters()
+    }
+
+    private fun applyFilters() {
+        _uiState.update { state ->
+            val filtered = state.transfers.filter { transfer ->
+                val matchesSearch = state.searchQuery.isBlank() ||
+                    transfer.codigo.contains(state.searchQuery, ignoreCase = true) ||
+                    transfer.centroProductor?.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
+                    transfer.centroGestor?.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
+                    transfer.residuo?.descripcion?.contains(state.searchQuery, ignoreCase = true) == true
+
+                val matchesStatus = state.selectedStatus == null ||
+                    transfer.estado.equals(state.selectedStatus, ignoreCase = true)
+
+                matchesSearch && matchesStatus
+            }
+            state.copy(filteredTransfers = filtered)
         }
     }
 }
@@ -108,52 +145,125 @@ class TransferDetailViewModel @Inject constructor(
             )
         }
     }
+
+    fun showStatusSheet() {
+        _uiState.update { it.copy(showStatusSheet = true) }
+    }
+
+    fun hideStatusSheet() {
+        _uiState.update { it.copy(showStatusSheet = false) }
+    }
+
+    fun changeStatus(newStatus: String) {
+        val transferId = loadedTransferId ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingStatus = true, showStatusSheet = false) }
+            repository.updateStatus(transferId, newStatus).fold(
+                onSuccess = { updated ->
+                    _uiState.update {
+                        it.copy(isUpdatingStatus = false, transfer = updated)
+                    }
+                },
+                onFailure = { throwable ->
+                    _uiState.update {
+                        it.copy(isUpdatingStatus = false, errorMessage = throwable.message)
+                    }
+                }
+            )
+        }
+    }
+
+    companion object {
+        fun nextStates(currentStatus: String): List<String> {
+            return when (currentStatus.uppercase()) {
+                "PENDIENTE" -> listOf("EN_TRANSITO")
+                "EN_TRANSITO" -> listOf("ENTREGADO")
+                "ENTREGADO" -> listOf("COMPLETADO")
+                else -> emptyList()
+            }
+        }
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransfersScreen(
     state: TransfersUiState,
     onRefresh: () -> Unit,
-    onTransferSelected: (Long) -> Unit
+    onTransferSelected: (Long) -> Unit,
+    onSearchChanged: (String) -> Unit = {},
+    onStatusFilter: (String?) -> Unit = {}
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(vertical = 16.dp)
+    PullToRefreshBox(
+        isRefreshing = state.isLoading,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
     ) {
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Traslados",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = EcoTextStrong
-                )
-                Text(
-                    text = "Listado de envios registrados en el sistema",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = EcoTextSubtle
-                )
-            }
-        }
-
-        if (state.errorMessage != null) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
             item {
-                Text(
-                    text = state.errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Traslados",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EcoTextStrong
+                    )
+                    Text(
+                        text = "Listado de envios registrados en el sistema",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EcoTextSubtle
+                    )
+                }
+            }
+
+            item {
+                OutlinedTextField(
+                    value = state.searchQuery,
+                    onValueChange = onSearchChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Buscar por código, productor, gestor...") },
+                    singleLine = true,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                 )
             }
-        }
 
-        items(state.transfers, key = { transfer -> transfer.id }) { transfer ->
-            TransferCard(
-                transfer = transfer,
-                onClick = { onTransferSelected(transfer.id) }
-            )
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    TRANSFER_STATES.forEach { status ->
+                        FilterChip(
+                            selected = state.selectedStatus == status,
+                            onClick = { onStatusFilter(status) },
+                            label = { Text(status.replace("_", " "), style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+            }
+
+            if (state.errorMessage != null) {
+                item {
+                    Text(
+                        text = state.errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            items(state.filteredTransfers, key = { transfer -> transfer.id }) { transfer ->
+                TransferCard(
+                    transfer = transfer,
+                    onClick = { onTransferSelected(transfer.id) }
+                )
+            }
         }
     }
 }
@@ -162,8 +272,54 @@ fun TransfersScreen(
 @Composable
 fun TransferDetailScreen(
     state: TransferDetailUiState,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onShowStatusSheet: () -> Unit = {},
+    onDismissStatusSheet: () -> Unit = {},
+    onChangeStatus: (String) -> Unit = {}
 ) {
+    if (state.showStatusSheet) {
+        val availableStates = state.transfer?.let {
+            TransferDetailViewModel.nextStates(it.estado)
+        } ?: emptyList()
+
+        ModalBottomSheet(onDismissRequest = onDismissStatusSheet) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Cambiar estado",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Estado actual: ${state.transfer?.estado.orEmpty()}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EcoTextSubtle
+                )
+                Spacer(Modifier.height(8.dp))
+                availableStates.forEach { nextStatus ->
+                    Button(
+                        onClick = { onChangeStatus(nextStatus) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Pasar a ${nextStatus.replace("_", " ")}")
+                    }
+                }
+                if (availableStates.isEmpty()) {
+                    Text(
+                        text = "No hay transiciones disponibles desde este estado.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EcoTextMuted
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -174,6 +330,16 @@ fun TransferDetailScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            val hasTransitions = state.transfer?.let {
+                TransferDetailViewModel.nextStates(it.estado).isNotEmpty()
+            } ?: false
+            if (hasTransitions) {
+                FloatingActionButton(onClick = onShowStatusSheet) {
+                    Text("Cambiar estado", modifier = Modifier.padding(horizontal = 16.dp))
+                }
+            }
         }
     ) { innerPadding ->
         LazyColumn(

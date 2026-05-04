@@ -8,7 +8,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,11 +33,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+
+enum class DashboardPeriod(val label: String, val daysBack: Int?) {
+    TODAY("Hoy", 0),
+    WEEK("7 días", 7),
+    MONTH("30 días", 30),
+    ALL("Todo", null)
+}
 
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val data: EstadisticasDto = EstadisticasDto(),
+    val selectedPeriod: DashboardPeriod = DashboardPeriod.MONTH,
     val errorMessage: String? = null
 )
 
@@ -50,33 +65,48 @@ class DashboardViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            repository.loadDashboard().fold(
+            val desde = _uiState.value.selectedPeriod.daysBack?.let { days ->
+                LocalDate.now().minusDays(days.toLong())
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE)
+            }
+            repository.loadDashboard(desde).fold(
                 onSuccess = { stats ->
-                    _uiState.value = DashboardUiState(isLoading = false, data = stats)
+                    _uiState.update { it.copy(isLoading = false, data = stats) }
                 },
                 onFailure = { throwable ->
-                    _uiState.value = DashboardUiState(
-                        isLoading = false,
-                        errorMessage = throwable.message
-                    )
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = throwable.message)
+                    }
                 }
             )
         }
     }
+
+    fun setPeriod(period: DashboardPeriod) {
+        _uiState.update { it.copy(selectedPeriod = period) }
+        load()
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     state: DashboardUiState,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onPeriodSelected: (DashboardPeriod) -> Unit = {}
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(vertical = 16.dp)
+    PullToRefreshBox(
+        isRefreshing = state.isLoading,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize()
     ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
@@ -90,6 +120,21 @@ fun DashboardScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = EcoTextSubtle
                 )
+            }
+        }
+
+        item {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                DashboardPeriod.entries.forEach { period ->
+                    FilterChip(
+                        selected = state.selectedPeriod == period,
+                        onClick = { onPeriodSelected(period) },
+                        label = { Text(period.label) }
+                    )
+                }
             }
         }
 
@@ -175,23 +220,6 @@ fun DashboardScreen(
             }
         }
 
-        item {
-            Button(
-                onClick = onRefresh,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = EcoPrimary)
-            ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(text = "Actualizar datos")
-            }
         }
     }
 }

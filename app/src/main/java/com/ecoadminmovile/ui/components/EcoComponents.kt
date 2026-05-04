@@ -23,26 +23,41 @@ import com.ecoadminmovile.ui.theme.*
 @Composable
 fun EcoCard(
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = modifier
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(12.dp),
-                spotColor = Color(0x0F0F172A)
-            )
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(12.dp)
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(12.dp),
-        content = content
+    val cardModifier = modifier
+        .shadow(
+            elevation = 2.dp,
+            shape = RoundedCornerShape(12.dp),
+            spotColor = Color(0x0F0F172A)
+        )
+        .border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(12.dp)
+        )
+    val cardColors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surface
     )
+    val cardShape = RoundedCornerShape(12.dp)
+
+    if (onClick != null) {
+        Card(
+            onClick = onClick,
+            modifier = cardModifier,
+            colors = cardColors,
+            shape = cardShape,
+            content = content
+        )
+    } else {
+        Card(
+            modifier = cardModifier,
+            colors = cardColors,
+            shape = cardShape,
+            content = content
+        )
+    }
 }
 
 @Composable

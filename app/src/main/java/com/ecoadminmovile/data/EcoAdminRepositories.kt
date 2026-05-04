@@ -2,11 +2,17 @@ package com.ecoadminmovile.data
 
 import com.ecoadminmovile.core.model.CentroDto
 import com.ecoadminmovile.core.model.EstadisticasDto
+import com.ecoadminmovile.core.model.HistorialEventoDto
+import com.ecoadminmovile.core.model.ResiduoDto
+import com.ecoadminmovile.core.model.RutaDto
+import com.ecoadminmovile.core.model.TrasladoCreateDto
 import com.ecoadminmovile.core.model.TrasladoDto
 import com.ecoadminmovile.core.model.UsuarioPerfilDto
+import com.ecoadminmovile.core.model.UsuarioResumenDto
 import com.ecoadminmovile.core.network.EcoAdminApi
 import com.ecoadminmovile.core.preferences.AppPreferences
 import java.io.IOException
+import okhttp3.ResponseBody
 import retrofit2.Response
 
 private class ApiException(message: String) : IllegalStateException(message)
@@ -93,7 +99,8 @@ class AuthRepository(
 class DashboardRepository(
     private val api: EcoAdminApi
 ) {
-    suspend fun loadDashboard(): Result<EstadisticasDto> = safeApiCall { api.getEstadisticas() }
+    suspend fun loadDashboard(desde: String? = null): Result<EstadisticasDto> =
+        safeApiCall { api.getEstadisticas(desde) }
 }
 
 class TransfersRepository(
@@ -102,12 +109,41 @@ class TransfersRepository(
     suspend fun loadTransfers(): Result<List<TrasladoDto>> = safeApiCall { api.getTraslados() }
 
     suspend fun loadTransfer(id: Long): Result<TrasladoDto> = safeApiCall { api.getTraslado(id) }
+
+    suspend fun createTransfer(data: TrasladoCreateDto): Result<TrasladoDto> =
+        safeApiCall { api.createTraslado(data) }
+
+    suspend fun updateTransfer(id: Long, data: TrasladoCreateDto): Result<TrasladoDto> =
+        safeApiCall { api.updateTraslado(id, data) }
+
+    suspend fun deleteTransfer(id: Long): Result<Unit> =
+        safeApiCall { api.deleteTraslado(id) }
+
+    suspend fun updateStatus(id: Long, newStatus: String, comentario: String? = null): Result<TrasladoDto> =
+        safeApiCall { api.updateTransferStatus(id, newStatus, comentario) }
+
+    suspend fun loadHistory(id: Long): Result<List<HistorialEventoDto>> =
+        safeApiCall { api.getTransferHistory(id) }
+
+    suspend fun loadPdf(id: Long, tipo: String): Result<ResponseBody> =
+        safeApiCall { api.getTransferPdf(id, tipo) }
+}
+
+class CatalogRepository(
+    private val api: EcoAdminApi
+) {
+    suspend fun loadCentros(): Result<List<CentroDto>> = safeApiCall { api.getCentros() }
+    suspend fun loadResiduos(): Result<List<ResiduoDto>> = safeApiCall { api.getResiduos() }
+    suspend fun loadTransportistas(): Result<List<UsuarioResumenDto>> = safeApiCall { api.getUsuarios("TRANSPORTISTA") }
+    suspend fun loadRutas(transportistaId: Long? = null): Result<List<RutaDto>> = safeApiCall { api.getRutas(transportistaId) }
 }
 
 class CentersRepository(
     private val api: EcoAdminApi
 ) {
     suspend fun loadCenters(): Result<List<CentroDto>> = safeApiCall { api.getCentros() }
+
+    suspend fun loadCenter(id: Long): Result<CentroDto> = safeApiCall { api.getCentro(id) }
 }
 
 private suspend fun <T> safeApiCall(request: suspend () -> Response<T>): Result<T> {

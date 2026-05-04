@@ -43,6 +43,8 @@ import androidx.navigation.navArgument
 import com.ecoadminmovile.app.AppViewModel
 import com.ecoadminmovile.feature.auth.LoginScreen
 import com.ecoadminmovile.feature.auth.LoginViewModel
+import com.ecoadminmovile.feature.centers.CenterDetailScreen
+import com.ecoadminmovile.feature.centers.CenterDetailViewModel
 import com.ecoadminmovile.feature.centers.CentersScreen
 import com.ecoadminmovile.feature.centers.CentersViewModel
 import com.ecoadminmovile.feature.dashboard.DashboardScreen
@@ -50,8 +52,11 @@ import com.ecoadminmovile.feature.dashboard.DashboardViewModel
 import com.ecoadminmovile.feature.profile.ProfileScreen
 import com.ecoadminmovile.feature.transfers.TransferDetailScreen
 import com.ecoadminmovile.feature.transfers.TransferDetailViewModel
-import com.ecoadminmovile.feature.transfers.TransfersScreen
+import com.ecoadminmovile.feature.transfers.TransferFormScreen
+import com.ecoadminmovile.feature.transfers.TransferFormViewModel
+import com.ecoadminmovile.feature.transfers.TransfersListScreen
 import com.ecoadminmovile.feature.transfers.TransfersViewModel
+import com.ecoadminmovile.feature.transfers.QrScannerScreen
 import com.ecoadminmovile.ui.theme.EcoBlue
 import com.ecoadminmovile.ui.theme.EcoSlate
 
@@ -97,7 +102,9 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
             val currentRoute = backStackEntry?.destination?.route
             val currentTitle = topLevelDestinations.firstOrNull { it.route == currentRoute }?.title
                 ?: "Detalle traslado"
-            val showBottomBar = currentRoute != "traslado/{trasladoId}"
+            val showBottomBar = currentRoute != "traslado/{trasladoId}" &&
+                currentRoute != "traslado/form" && currentRoute != "traslado/form/{trasladoId}" &&
+                currentRoute != "qr-scanner"
 
             Scaffold(
                 topBar = {
@@ -144,7 +151,8 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
 
                         DashboardScreen(
                             state = dashboardState,
-                            onRefresh = dashboardViewModel::load
+                            onRefresh = dashboardViewModel::load,
+                            onPeriodSelected = dashboardViewModel::setPeriod
                         )
                     }
 
@@ -152,12 +160,56 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
                         val transfersViewModel: TransfersViewModel = hiltViewModel()
                         val transfersState by transfersViewModel.uiState.collectAsStateWithLifecycle()
 
-                        TransfersScreen(
+                        TransfersListScreen(
                             state = transfersState,
                             onRefresh = transfersViewModel::load,
                             onTransferSelected = { transferId ->
                                 navController.navigate("traslado/$transferId")
-                            }
+                            },
+                            onSearchChanged = transfersViewModel::updateSearch,
+                            onStatusFilter = transfersViewModel::filterByStatus,
+                            onCreateNew = { navController.navigate("traslado/form") },
+                            onScanQr = { navController.navigate("qr-scanner") }
+                        )
+                    }
+
+                    composable("traslado/form") {
+                        val formViewModel: TransferFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(Unit) { formViewModel.initForm() }
+
+                        if (formState.savedSuccessfully) {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+
+                        TransferFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onSave = formViewModel::save,
+                            onFieldChanged = formViewModel::onFieldChanged
+                        )
+                    }
+
+                    composable(
+                        route = "traslado/form/{trasladoId}",
+                        arguments = listOf(navArgument("trasladoId") { type = NavType.LongType })
+                    ) { entry ->
+                        val transferId = entry.arguments?.getLong("trasladoId") ?: return@composable
+                        val formViewModel: TransferFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(transferId) { formViewModel.initForm(transferId) }
+
+                        if (formState.savedSuccessfully) {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+
+                        TransferFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onSave = formViewModel::save,
+                            onFieldChanged = formViewModel::onFieldChanged
                         )
                     }
 
@@ -179,7 +231,30 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
 
                         TransferDetailScreen(
                             state = detailState,
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            onShowStatusSheet = transferDetailViewModel::showStatusSheet,
+                            onDismissStatusSheet = transferDetailViewModel::hideStatusSheet,
+                            onChangeStatus = transferDetailViewModel::changeStatus,
+                            onEdit = { navController.navigate("traslado/form/$transferId") },
+                            onDelete = {
+                                transferDetailViewModel.deleteTransfer {
+                                    navController.popBackStack()
+                                }
+                            }
+                        )
+                    }
+
+                    composable("qr-scanner") {
+                        QrScannerScreen(
+                            onBack = { navController.popBackStack() },
+                            onQrScanned = { code ->
+                                // Try to extract traslado ID from the QR code
+                                val id = code.filter { it.isDigit() }.toLongOrNull()
+                                navController.popBackStack()
+                                if (id != null) {
+                                    navController.navigate("traslado/$id")
+                                }
+                            }
                         )
                     }
 
@@ -189,7 +264,34 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
 
                         CentersScreen(
                             state = centersState,
-                            onRefresh = centersViewModel::load
+                            onRefresh = centersViewModel::load,
+                            onSearchChanged = centersViewModel::updateSearch,
+                            onTypeFilter = centersViewModel::filterByType,
+                            onCenterSelected = { centerId ->
+                                navController.navigate("centro/$centerId")
+                            }
+                        )
+                    }
+
+                    composable(
+                        "centro/{centroId}",
+                        arguments = listOf(
+                            navArgument("centroId") {
+                                type = NavType.LongType
+                            }
+                        )
+                    ) { navBackStackEntry ->
+                        val centerId = navBackStackEntry.arguments?.getLong("centroId") ?: return@composable
+                        val centerDetailViewModel: CenterDetailViewModel = hiltViewModel()
+                        val detailState by centerDetailViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(centerId) {
+                            centerDetailViewModel.load(centerId)
+                        }
+
+                        CenterDetailScreen(
+                            state = detailState,
+                            onBack = { navController.popBackStack() }
                         )
                     }
 
