@@ -13,11 +13,15 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface EcoAdminApi {
+    @GET("login")
+    suspend fun getLoginPage(): Response<ResponseBody>
+
     @FormUrlEncoded
     @POST("login")
     suspend fun login(
         @Field("username") email: String,
-        @Field("password") password: String
+        @Field("password") password: String,
+        @Field("_csrf") csrfToken: String
     ): Response<ResponseBody>
 
     @GET("api/perfil")

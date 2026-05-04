@@ -199,7 +199,6 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) {
                             profileEmail = appState.profile?.email.orEmpty(),
                             profileRole = appState.profile?.rol.orEmpty(),
                             profilePhone = appState.profile?.telefono,
-                            baseUrl = appState.baseUrl,
                             onLogout = appViewModel::logout
                         )
                     }

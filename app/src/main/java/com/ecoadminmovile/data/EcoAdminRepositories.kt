@@ -21,27 +21,63 @@ class AuthRepository(
         preferences.clearSession()
 
         return try {
-            val response = api.login(email = email.trim(), password = password)
+            val csrfToken = fetchCsrfToken()
+                ?: return Result.failure(
+                    ApiException("No se pudo obtener el token CSRF del servidor. Verifica que el backend está accesible.")
+                )
+
+            val response = api.login(
+                email = email.trim(),
+                password = password,
+                csrfToken = csrfToken
+            )
+            val code = response.code()
             val location = response.headers()["Location"].orEmpty()
             val hasSession = preferences.hasSessionCookie()
 
             when {
                 location.contains("/login?error") -> Result.failure(
-                    ApiException("Email o contrasena incorrectos.")
+                    ApiException("Credenciales incorrectas. Verifica tu email y contraseña.")
                 )
 
-                (response.code() in 300..399 || response.isSuccessful) && hasSession -> {
-                    validateSession().map { Unit }
+                location.contains("/login") && !hasSession -> Result.failure(
+                    ApiException(
+                        "El servidor rechazó el login (HTTP $code → $location). " +
+                        "Posible problema de CSRF o sesión."
+                    )
+                )
+
+                (code in 300..399 || response.isSuccessful) && hasSession -> {
+                    Result.success(Unit)
                 }
 
+                !hasSession -> Result.failure(
+                    ApiException(
+                        "Login HTTP $code pero no se recibió cookie de sesión. " +
+                        "Location: $location"
+                    )
+                )
+
                 else -> Result.failure(
-                    ApiException("No se pudo iniciar sesion (${response.code()}).")
+                    ApiException("Respuesta inesperada del servidor: HTTP $code. Location: $location")
                 )
             }
         } catch (ioException: IOException) {
-            Result.failure(ApiException("No se pudo conectar con el servidor configurado."))
+            Result.failure(ApiException("No se pudo conectar al servidor: ${ioException.message}"))
         } catch (exception: Exception) {
-            Result.failure(ApiException(exception.message ?: "Error inesperado al iniciar sesion."))
+            Result.failure(ApiException("Error inesperado: ${exception.message}"))
+        }
+    }
+
+    private suspend fun fetchCsrfToken(): String? {
+        return try {
+            val response = api.getLoginPage()
+            val html = response.body()?.string().orEmpty()
+            // Parse: <input type="hidden" name="_csrf" value="TOKEN_VALUE"/>
+            val regex = """name="_csrf"\s+value="([^"]+)"""".toRegex()
+            regex.find(html)?.groupValues?.get(1)
+        } catch (_: Exception) {
+            null
         }
     }
 

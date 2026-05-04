@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,7 +26,6 @@ fun ProfileScreen(
     profileEmail: String,
     profileRole: String,
     profilePhone: String?,
-    baseUrl: String,
     onLogout: () -> Unit
 ) {
     Column(
@@ -83,53 +81,6 @@ fun ProfileScreen(
                 if (!profilePhone.isNullOrBlank()) {
                     ProfileInfoRow("Teléfono", profilePhone)
                 }
-            }
-        }
-
-        EcoCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.Settings,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = EcoTextMuted
-                    )
-                    Text(
-                        text = "Configuración del servidor",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = EcoTextStrong
-                    )
-                }
-                
-                Text(
-                    text = "Base URL",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = EcoTextSubtle
-                )
-                Text(
-                    text = baseUrl,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = EcoTextMuted,
-                    fontWeight = FontWeight.Medium
-                )
-                
-                Spacer(Modifier.height(4.dp))
-                
-                Text(
-                    text = "Si cambias de entorno, vuelve a iniciar sesión para regenerar la cookie de sesión.",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 11.sp,
-                    color = EcoTextSubtle,
-                    lineHeight = 16.sp
-                )
             }
         }
 
