@@ -411,3 +411,51 @@ fun CenterDetailScreen(
         }
     }
 }
+
+// --- Previews ---
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Centros - Lista")
+@Composable
+fun CentersScreenPreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        CentersScreen(
+            state = CentersUiState(
+                isLoading = false,
+                centers = listOf(
+                    CentroDto(id = 1, codigo = "CP-001", nombre = "Fábrica Norte", tipo = "PRODUCTOR", nima = "ES-12345"),
+                    CentroDto(id = 2, codigo = "CG-001", nombre = "Gestor Ambiental S.L.", tipo = "GESTOR", nima = "ES-67890"),
+                    CentroDto(id = 3, codigo = "CP-002", nombre = "Planta Levante", tipo = "PRODUCTOR")
+                ),
+                filteredCenters = listOf(
+                    CentroDto(id = 1, codigo = "CP-001", nombre = "Fábrica Norte", tipo = "PRODUCTOR", nima = "ES-12345"),
+                    CentroDto(id = 2, codigo = "CG-001", nombre = "Gestor Ambiental S.L.", tipo = "GESTOR", nima = "ES-67890"),
+                    CentroDto(id = 3, codigo = "CP-002", nombre = "Planta Levante", tipo = "PRODUCTOR")
+                )
+            ),
+            onRefresh = {}
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Centro - Detalle")
+@Composable
+fun CenterDetailScreenPreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        CenterDetailScreen(
+            state = CenterDetailUiState(
+                isLoading = false,
+                center = CentroDto(
+                    id = 1,
+                    codigo = "CP-001",
+                    nombre = "Fábrica Norte",
+                    tipo = "PRODUCTOR",
+                    nima = "ES-12345",
+                    telefono = "+34 965 123 456",
+                    email = "fabrica@norte.es",
+                    nombreContacto = "Carlos Ruiz"
+                )
+            ),
+            onBack = {}
+        )
+    }
+}

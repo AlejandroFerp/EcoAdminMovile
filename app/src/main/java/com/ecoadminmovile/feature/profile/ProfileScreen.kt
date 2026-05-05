@@ -133,3 +133,33 @@ private fun ProfileInfoRow(label: String, value: String) {
         )
     }
 }
+
+// --- Previews ---
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Perfil")
+@Composable
+fun ProfileScreenPreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        ProfileScreen(
+            profileName = "Alejandro García",
+            profileEmail = "alejandro@embention.com",
+            profileRole = "ADMINISTRADOR",
+            profilePhone = "+34 612 345 678",
+            onLogout = {}
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Perfil sin teléfono")
+@Composable
+fun ProfileScreenNoPhonePreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        ProfileScreen(
+            profileName = "María López",
+            profileEmail = "maria@embention.com",
+            profileRole = "TRANSPORTISTA",
+            profilePhone = null,
+            onLogout = {}
+        )
+    }
+}

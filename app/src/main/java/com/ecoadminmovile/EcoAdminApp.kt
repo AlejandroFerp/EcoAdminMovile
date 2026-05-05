@@ -78,6 +78,7 @@ import com.ecoadminmovile.feature.transfers.TransferFormViewModel
 import com.ecoadminmovile.feature.transfers.TransfersListScreen
 import com.ecoadminmovile.feature.transfers.TransfersViewModel
 import com.ecoadminmovile.feature.transfers.QrScannerScreen
+import com.ecoadminmovile.feature.transfers.QrScannerViewModel
 import com.ecoadminmovile.ui.theme.EcoBlue
 import com.ecoadminmovile.ui.theme.EcoSlate
 
@@ -184,7 +185,10 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                         DashboardScreen(
                             state = dashboardState,
                             onRefresh = dashboardViewModel::load,
-                            onPeriodSelected = dashboardViewModel::setPeriod
+                            onPeriodSelected = dashboardViewModel::setPeriod,
+                            onTransferSelected = { transferId ->
+                                navController.navigate("traslado/$transferId")
+                            }
                         )
                     }
 
@@ -201,7 +205,10 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onSearchChanged = transfersViewModel::updateSearch,
                             onStatusFilter = transfersViewModel::filterByStatus,
                             onCreateNew = { navController.navigate("traslado/form") },
-                            onScanQr = { navController.navigate("qr-scanner") }
+                            onScanQr = { navController.navigate("qr-scanner") },
+                            onStatusChange = { id, newStatus, comment ->
+                                transfersViewModel.changeStatus(id, newStatus, comment)
+                            }
                         )
                     }
 
@@ -269,7 +276,9 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onBack = { navController.popBackStack() },
                             onShowStatusSheet = transferDetailViewModel::showStatusSheet,
                             onDismissStatusSheet = transferDetailViewModel::hideStatusSheet,
-                            onChangeStatus = transferDetailViewModel::changeStatus,
+                            onChangeStatus = { newStatus, comment ->
+                                transferDetailViewModel.changeStatus(newStatus, comment)
+                            },
                             onEdit = { navController.navigate("traslado/form/$transferId") },
                             onDelete = {
                                 transferDetailViewModel.deleteTransfer {
@@ -280,15 +289,19 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                     }
 
                     composable("qr-scanner") {
+                        val qrViewModel: QrScannerViewModel = hiltViewModel()
+
                         QrScannerScreen(
                             onBack = { navController.popBackStack() },
                             onQrScanned = { code ->
-                                // Try to extract traslado ID from the QR code
                                 val id = code.filter { it.isDigit() }.toLongOrNull()
                                 navController.popBackStack()
                                 if (id != null) {
                                     navController.navigate("traslado/$id")
                                 }
+                            },
+                            onCompleteTransfer = { transferId, onResult ->
+                                qrViewModel.completeTransfer(transferId, onResult)
                             }
                         )
                     }

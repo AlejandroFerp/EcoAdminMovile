@@ -1,23 +1,16 @@
 /**
  * Pantalla de escaneo QR usando CameraX + ML Kit para lectura de códigos de barras.
- *
- * Conceptos Kotlin demostrados:
- * - rememberLauncherForActivityResult: Activity Result API en Compose (reemplaza onActivityResult).
- * - LaunchedEffect(Unit): efecto secundario que se ejecuta UNA sola vez al entrar en composición.
- * - AndroidView { factory }: integra Views tradicionales de Android dentro de Compose.
- * - Executors.newSingleThreadExecutor(): crea hilo de fondo para procesamiento de imágenes.
- * - @OptIn(ExperimentalGetImage::class): acepta uso de API experimental de CameraX.
- * - var ... by remember { mutableStateOf(...) }: patrón estándar para estado local en Compose.
- * - Callback pattern: `onResult: (String) -> Unit` como parámetro de función.
- *
- * Patrones de diseño:
- * - Callback/Observer: onQrScanned notifica al padre cuando se detecta un QR.
- * - Strategy: el ImageAnalysis.Analyzer procesa cada frame de cámara.
+ * Al detectar un QR con un código de traslado, muestra un diálogo de confirmación
+ * y permite completar el workflow del traslado directamente desde la cámara.
  */
 package com.ecoadminmovile.feature.transfers
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,15 +22,22 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -47,32 +47,36 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
 
+/** Possible states of the QR scan confirmation flow */
+private sealed interface QrScanState {
+    data object Scanning : QrScanState
+    data class Detected(val code: String, val transferId: Long?) : QrScanState
+    data object Completing : QrScanState
+    data class Success(val code: String) : QrScanState
+    data class Error(val message: String) : QrScanState
+}
+
 @Composable
 fun QrScannerScreen(
     onBack: () -> Unit,
-    // Callback pattern: función que se invoca con el resultado del escaneo
-    onQrScanned: (String) -> Unit
+    onQrScanned: (String) -> Unit,
+    onCompleteTransfer: ((Long, onResult: (Boolean, String?) -> Unit) -> Unit)? = null
 ) {
     val context = LocalContext.current
-    // var ... by remember { mutableStateOf(...) }: estado local mutable que persiste entre recomposiciones.
-    // `by` delega get/set a MutableState (property delegation).
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                 PackageManager.PERMISSION_GRANTED
         )
     }
+    var scanState by remember { mutableStateOf<QrScanState>(QrScanState.Scanning) }
 
-    // rememberLauncherForActivityResult: reemplaza startActivityForResult/onActivityResult.
-    // Registra un callback que se ejecuta cuando el sistema devuelve un resultado.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasCameraPermission = granted
     }
 
-    // LaunchedEffect(Unit): se ejecuta UNA SOLA VEZ cuando el Composable entra en composición.
-    // Unit como key = nunca se re-ejecuta (equivale a "on mount" en React).
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -98,7 +102,63 @@ fun QrScannerScreen(
                 .padding(padding)
         ) {
             if (hasCameraPermission) {
-                CameraPreviewWithAnalysis(onQrScanned = onQrScanned)
+                CameraPreviewWithAnalysis(
+                    enabled = scanState is QrScanState.Scanning,
+                    onQrDetected = { code ->
+                        vibrate(context)
+                        val transferId = extractTransferId(code)
+                        scanState = QrScanState.Detected(code, transferId)
+                    }
+                )
+
+                // Overlay with scan state UI
+                when (val state = scanState) {
+                    is QrScanState.Scanning -> {
+                        ScanningOverlay()
+                    }
+                    is QrScanState.Detected -> {
+                        DetectedOverlay(
+                            code = state.code,
+                            transferId = state.transferId,
+                            onConfirmComplete = {
+                                val id = state.transferId
+                                if (id != null && onCompleteTransfer != null) {
+                                    scanState = QrScanState.Completing
+                                    onCompleteTransfer(id) { success, errorMsg ->
+                                        scanState = if (success) {
+                                            QrScanState.Success(state.code)
+                                        } else {
+                                            QrScanState.Error(errorMsg ?: "Error al completar el traslado")
+                                        }
+                                    }
+                                }
+                            },
+                            onViewDetail = {
+                                onQrScanned(state.code)
+                            },
+                            onRescan = {
+                                scanState = QrScanState.Scanning
+                            }
+                        )
+                    }
+                    is QrScanState.Completing -> {
+                        CompletingOverlay()
+                    }
+                    is QrScanState.Success -> {
+                        SuccessOverlay(
+                            code = state.code,
+                            onScanAnother = { scanState = QrScanState.Scanning },
+                            onBack = onBack
+                        )
+                    }
+                    is QrScanState.Error -> {
+                        ErrorOverlay(
+                            message = state.message,
+                            onRetry = { scanState = QrScanState.Scanning },
+                            onBack = onBack
+                        )
+                    }
+                }
             } else {
                 Column(
                     modifier = Modifier
@@ -121,14 +181,326 @@ fun QrScannerScreen(
     }
 }
 
+/** Extract a transfer ID from a QR code (supports numeric ID or "TRASLADO-{id}" patterns) */
+private fun extractTransferId(code: String): Long? {
+    // Pattern 1: direct numeric ID
+    code.toLongOrNull()?.let { return it }
+    // Pattern 2: URL or text containing /traslados/{id}
+    Regex("""(?:traslados?|recogidas?)[/\\#-](\d+)""", RegexOption.IGNORE_CASE)
+        .find(code)?.groupValues?.get(1)?.toLongOrNull()?.let { return it }
+    // Pattern 3: "TRASLADO-123" or "ECO-123"
+    Regex("""(?:TRASLADO|ECO|REC)[- ]?(\d+)""", RegexOption.IGNORE_CASE)
+        .find(code)?.groupValues?.get(1)?.toLongOrNull()?.let { return it }
+    // Fallback: extract all digits if result is reasonable (1-8 digits)
+    val digits = code.filter { it.isDigit() }
+    if (digits.length in 1..8) return digits.toLongOrNull()
+    return null
+}
+
+@Suppress("DEPRECATION")
+private fun vibrate(context: android.content.Context) {
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator?.vibrate(
+                VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
+        } else {
+            val vibrator = context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator?.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                vibrator?.vibrate(100)
+            }
+        }
+    } catch (_: Exception) { /* Vibration not critical */ }
+}
+
 @Composable
-private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
+private fun ScanningOverlay() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.Black.copy(alpha = 0.7f)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.QrCodeScanner,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Apunta al código QR de un traslado",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetectedOverlay(
+    code: String,
+    transferId: Long?,
+    onConfirmComplete: () -> Unit,
+    onViewDetail: () -> Unit,
+    onRescan: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(32.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.QrCodeScanner,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    text = "QR Detectado",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (transferId != null) {
+                    Text(
+                        text = "Traslado #$transferId",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "¿Marcar como COMPLETADO?\nEsto avanzará el traslado a su etapa final.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Button(
+                        onClick = onConfirmComplete,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF10B981)
+                        )
+                    ) {
+                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Completar traslado", fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = onViewDetail,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Ver detalle")
+                    }
+                } else {
+                    Text(
+                        text = "Código: $code",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "No se pudo identificar un traslado en este QR.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                TextButton(onClick = onRescan) {
+                    Text("Escanear otro")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompletingOverlay() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    text = "Completando traslado...",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuccessOverlay(
+    code: String,
+    onScanAnother: () -> Unit,
+    onBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(32.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    tint = Color(0xFF10B981),
+                    modifier = Modifier.size(56.dp)
+                )
+                Text(
+                    text = "¡Traslado completado!",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF10B981)
+                )
+                Text(
+                    text = "El traslado ha sido marcado como COMPLETADO exitosamente.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Button(
+                    onClick = onScanAnother,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Escanear otro QR")
+                }
+
+                TextButton(onClick = onBack) {
+                    Text("Volver al listado")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorOverlay(
+    message: String,
+    onRetry: () -> Unit,
+    onBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(32.dp)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    text = "Error",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Reintentar")
+                }
+                TextButton(onClick = onBack) {
+                    Text("Volver")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CameraPreviewWithAnalysis(
+    enabled: Boolean,
+    onQrDetected: (String) -> Unit
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var scannedOnce by remember { mutableStateOf(false) }
 
-    // AndroidView: permite embeber Views tradicionales de Android dentro de Jetpack Compose.
-    // factory lambda: se ejecuta una vez para crear la View nativa (PreviewView de CameraX).
+    // Reset scan lock when re-enabled (user wants to scan another)
+    LaunchedEffect(enabled) {
+        if (enabled) scannedOnce = false
+    }
+
     AndroidView(
         factory = { ctx ->
             val previewView = PreviewView(ctx)
@@ -145,13 +517,11 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
                     .also { analysis ->
-                        // Executors.newSingleThreadExecutor(): hilo dedicado para procesamiento.
-                        // El análisis de imagen se hace fuera del main thread.
                         analysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
                             processImage(imageProxy) { barcode ->
-                                if (!scannedOnce) {
+                                if (!scannedOnce && enabled) {
                                     scannedOnce = true
-                                    onQrScanned(barcode)
+                                    onQrDetected(barcode)
                                 }
                             }
                         }
@@ -176,8 +546,6 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
     )
 }
 
-// @OptIn(ExperimentalGetImage::class): acepta uso de API experimental de CameraX.
-// Sin esta anotación, acceder a imageProxy.image daría error de compilación.
 @OptIn(ExperimentalGetImage::class)
 private fun processImage(imageProxy: ImageProxy, onResult: (String) -> Unit) {
     val mediaImage = imageProxy.image ?: run {

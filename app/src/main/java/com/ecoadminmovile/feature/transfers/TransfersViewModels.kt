@@ -139,6 +139,15 @@ class TransfersViewModel @Inject constructor(
             state.copy(filteredTransfers = filtered)
         }
     }
+
+    fun changeStatus(transferId: Long, newStatus: String, comment: String? = null) {
+        viewModelScope.launch {
+            repository.updateStatus(transferId, newStatus, comment).fold(
+                onSuccess = { load() },
+                onFailure = { /* user can retry */ }
+            )
+        }
+    }
 }
 
 @HiltViewModel
@@ -219,12 +228,10 @@ class TransferDetailViewModel @Inject constructor(
     }
 
     companion object {
-        fun nextStates(currentStatus: String): List<String> = when (currentStatus.uppercase()) {
-            "PENDIENTE" -> listOf("EN_TRANSITO")
-            "EN_TRANSITO" -> listOf("ENTREGADO")
-            "ENTREGADO" -> listOf("COMPLETADO")
-            else -> emptyList()
-        }
+        private val ALL_STATES = listOf("PENDIENTE", "EN_TRANSITO", "ENTREGADO", "COMPLETADO")
+
+        fun nextStates(currentStatus: String): List<String> =
+            ALL_STATES.filter { it != currentStatus.uppercase() }
     }
 }
 
@@ -321,5 +328,40 @@ class TransferFormViewModel @Inject constructor(
                 }
             )
         }
+    }
+}
+
+@HiltViewModel
+class QrScannerViewModel @Inject constructor(
+    private val repository: TransfersRepository
+) : ViewModel() {
+
+    fun completeTransfer(transferId: Long, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            // First load the transfer to determine its current state
+            repository.loadTransfer(transferId).fold(
+                onSuccess = { transfer ->
+                    val finalState = resolveCompletionState(transfer.estado)
+                    if (finalState == null) {
+                        onResult(false, "El traslado ya está en estado ${transfer.estado}")
+                        return@launch
+                    }
+                    repository.updateStatus(transferId, finalState, "Completado via QR scanner").fold(
+                        onSuccess = { onResult(true, null) },
+                        onFailure = { onResult(false, it.message) }
+                    )
+                },
+                onFailure = { onResult(false, it.message) }
+            )
+        }
+    }
+
+    /** Resolves what the final workflow state should be based on current state */
+    private fun resolveCompletionState(currentState: String): String? = when (currentState.uppercase()) {
+        "PENDIENTE" -> "COMPLETADO"
+        "EN_TRANSITO" -> "COMPLETADO"
+        "ENTREGADO" -> "COMPLETADO"
+        "COMPLETADO" -> null // Already done
+        else -> "COMPLETADO"
     }
 }

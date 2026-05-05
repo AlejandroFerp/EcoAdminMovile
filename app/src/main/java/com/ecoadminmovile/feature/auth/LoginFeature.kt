@@ -40,6 +40,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -310,5 +311,44 @@ fun LoginTextField(
             focusedLabelColor = EcoLoginGreen,
             unfocusedLabelColor = Color(0xFF6B7D72)
         )
+    )
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, name = "Login - Vacío")
+@Composable
+fun LoginScreenPreview() {
+    LoginScreen(
+        state = LoginUiState(),
+        onEmailChanged = {},
+        onPasswordChanged = {},
+        onLoginClick = {}
+    )
+}
+
+@Preview(showBackground = true, name = "Login - Con datos")
+@Composable
+fun LoginScreenFilledPreview() {
+    LoginScreen(
+        state = LoginUiState(email = "usuario@embention.com", password = "password"),
+        onEmailChanged = {},
+        onPasswordChanged = {},
+        onLoginClick = {}
+    )
+}
+
+@Preview(showBackground = true, name = "Login - Error")
+@Composable
+fun LoginScreenErrorPreview() {
+    LoginScreen(
+        state = LoginUiState(
+            email = "test@test.com",
+            password = "wrong",
+            errorMessage = "Credenciales inválidas"
+        ),
+        onEmailChanged = {},
+        onPasswordChanged = {},
+        onLoginClick = {}
     )
 }

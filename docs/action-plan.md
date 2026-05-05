@@ -11,14 +11,14 @@ Objetivo: que el usuario en campo pueda operar traslados sin volver a la web.
 
 - [x] Login con CSRF (POST /login funcional)
 - [x] URL de servidor fija en BuildConfig (sin campo manual)
-- [ ] Pull-to-refresh en Dashboard
-- [ ] Pull-to-refresh en Traslados
-- [ ] Pull-to-refresh en Centros
-- [ ] Selector de periodo en Dashboard (Hoy / 7d / 30d / Todo)
-- [ ] Búsqueda/filtro en listado de Traslados (por estado, texto)
-- [ ] Búsqueda/filtro en listado de Centros (por nombre, tipo)
-- [ ] Cambiar estado de traslado (tap → bottom sheet con transiciones válidas)
-- [ ] Detalle de centro (tap en tarjeta → pantalla de detalle)
+- [x] Pull-to-refresh en Dashboard
+- [x] Pull-to-refresh en Traslados
+- [x] Pull-to-refresh en Centros
+- [x] Selector de periodo en Dashboard (Hoy / 7d / 30d / Todo)
+- [x] Búsqueda/filtro en listado de Traslados (por estado, texto)
+- [x] Búsqueda/filtro en listado de Centros (por nombre, tipo)
+- [x] Cambiar estado de traslado (tap → bottom sheet con transiciones válidas)
+- [x] Detalle de centro (tap en tarjeta → pantalla de detalle)
 
 ---
 
@@ -27,10 +27,10 @@ Objetivo: que el usuario en campo pueda operar traslados sin volver a la web.
 Objetivo: crear y editar registros directamente desde la app.
 
 ### Traslados
-- [ ] Crear traslado (formulario con selección de productor, gestor, residuo, transportista)
-- [ ] Editar traslado (long-press → opciones de edición)
-- [ ] Eliminar traslado (confirmación antes de borrar)
-- [ ] Ver historial de eventos del traslado
+- [x] Crear traslado (formulario con selección de productor, gestor, residuo, transportista)
+- [x] Editar traslado (long-press → opciones de edición)
+- [x] Eliminar traslado (confirmación antes de borrar)
+- [x] Ver historial de eventos del traslado
 
 ### Centros
 - [ ] Crear centro (formulario con tipo, NIMA, dirección, contacto)
@@ -43,13 +43,33 @@ Objetivo: crear y editar registros directamente desde la app.
 
 ---
 
-## Fase 3 — Features avanzados
+## Fase 3 — Paridad funcional con la web
 
-Objetivo: cerrar la brecha funcional con la web.
+Objetivo: cerrar la brecha funcional con la web; que el móvil sea igual de potente.
 
-### QR Scanner
-- [ ] Escanear código QR de traslado (CameraX + ML Kit o ZXing)
-- [ ] Confirmar entrada/salida desde QR
+### QR Scanner (cámara nativa)
+- [x] Escanear código QR con CameraX + ML Kit (ya implementado)
+- [ ] Al detectar un QR con código/ID de traslado, mostrar diálogo de confirmación
+- [ ] Al confirmar, avanzar el traslado a la etapa final de su workflow (COMPLETADO)
+- [ ] Feedback visual con vibración y sonido al escanear correctamente
+
+### Dashboard mejorado
+- [ ] Métricas en LazyRow (scroll horizontal) para mostrar todos los campos de la web
+- [ ] Sección "Residuos por centro" usando el campo `residuosPorCentro` del DTO
+- [ ] Actividad reciente (últimos traslados con cambio de estado)
+
+### Detalle de traslado enriquecido
+- [ ] Mostrar cantidad y unidad del residuo
+- [ ] Mostrar fechas programadas (inicio/fin)
+- [ ] Mostrar fecha último cambio de estado
+- [ ] Mostrar distancia de la ruta (km)
+- [ ] Mostrar email/rol del transportista
+
+### Acciones rápidas en listado
+- [ ] Swipe-to-action o long-press en tarjeta de traslado
+- [ ] Cambiar estado directamente sin entrar al detalle
+- [ ] Ver historial rápido sin entrar al detalle
+- [ ] Eliminar con confirmación desde el listado
 
 ### Residuos
 - [ ] Listado de residuos con alertas FIFO

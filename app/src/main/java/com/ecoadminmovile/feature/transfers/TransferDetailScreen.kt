@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ecoadminmovile.core.model.HistorialEventoDto
 import com.ecoadminmovile.core.model.TrasladoDto
@@ -209,16 +210,37 @@ private fun DatosTab(
                         append(transfer.residuo?.codigoLER.orEmpty())
                         transfer.residuo?.descripcion?.let { append(" — $it") }
                     })
+                    if (transfer.residuo?.cantidad != null) {
+                        DetailField("Cantidad", buildString {
+                            append(transfer.residuo.cantidad.toString())
+                            transfer.residuo.unidad?.let { append(" $it") }
+                        })
+                    }
                     DetailField("Centro Productor", transfer.centroProductor?.nombre.orEmpty())
                     DetailField("Centro Gestor", transfer.centroGestor?.nombre.orEmpty())
-                    DetailField("Transportista", transfer.transportista?.nombre ?: "Sin asignar")
-                    DetailField("Ruta", transfer.ruta?.nombre ?: "Sin ruta")
+                    DetailField("Transportista", buildString {
+                        append(transfer.transportista?.nombre ?: "Sin asignar")
+                        transfer.transportista?.email?.let { append(" ($it)") }
+                    })
+                    DetailField("Ruta", buildString {
+                        append(transfer.ruta?.nombre ?: "Sin ruta")
+                        transfer.ruta?.distanciaKm?.let { append(" · $it km") }
+                    })
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
 
                     DetailField("Fecha creación", transfer.fechaCreacion?.take(16).orEmpty())
+                    if (!transfer.fechaProgramadaInicio.isNullOrBlank()) {
+                        DetailField("Programada inicio", transfer.fechaProgramadaInicio.take(16))
+                    }
+                    if (!transfer.fechaProgramadaFin.isNullOrBlank()) {
+                        DetailField("Programada fin", transfer.fechaProgramadaFin.take(16))
+                    }
                     DetailField("Inicio transporte", transfer.fechaInicioTransporte?.take(16).orEmpty())
                     DetailField("Entrega", transfer.fechaEntrega?.take(16).orEmpty())
+                    if (!transfer.fechaUltimoCambioEstado.isNullOrBlank()) {
+                        DetailField("Último cambio estado", transfer.fechaUltimoCambioEstado.take(16))
+                    }
 
                     if (!transfer.observaciones.isNullOrBlank()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
@@ -471,6 +493,7 @@ private fun StatusChangeBottomSheet(
     onConfirm: (String, String?) -> Unit
 ) {
     val availableStates = TransferDetailViewModel.nextStates(currentStatus)
+    var selectedState by remember { mutableStateOf<String?>(null) }
     var comentario by remember { mutableStateOf("") }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -478,52 +501,115 @@ private fun StatusChangeBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
                 text = "Cambiar Estado",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+
+            // Current status indicator
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Actual:", style = MaterialTheme.typography.bodyMedium, color = EcoTextSubtle)
+                EcoStatusPill(status = currentStatus)
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+            // State selection — radio-style
             Text(
-                text = "Estado actual: ${currentStatus.replace("_", " ")}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = EcoTextSubtle
+                text = "Nuevo estado",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = EcoTextStrong
             )
 
+            availableStates.forEach { state ->
+                val isSelected = selectedState == state
+                Surface(
+                    onClick = { selectedState = state },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected)
+                        statusColor(state).copy(alpha = 0.1f)
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    border = if (isSelected)
+                        ButtonDefaults.outlinedButtonBorder(enabled = true)
+                    else null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = { selectedState = state }
+                        )
+                        Column {
+                            Text(
+                                text = state.replace("_", " "),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = EcoTextStrong
+                            )
+                            Text(
+                                text = statusDescription(state),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EcoTextMuted
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+
+            // Comment field
             OutlinedTextField(
                 value = comentario,
                 onValueChange = { comentario = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Comentario (opcional)") },
-                placeholder = { Text("Motivo del cambio...") },
-                minLines = 2,
-                maxLines = 4,
+                label = { Text("Comentario") },
+                placeholder = { Text("Motivo del cambio de estado...") },
+                minLines = 3,
+                maxLines = 5,
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(Modifier.height(8.dp))
-
-            availableStates.forEach { nextStatus ->
-                Button(
-                    onClick = { onConfirm(nextStatus, comentario.ifBlank { null }) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Pasar a ${nextStatus.replace("_", " ")}")
-                }
-            }
-
-            if (availableStates.isEmpty()) {
+            // Confirm button
+            Button(
+                onClick = {
+                    selectedState?.let { onConfirm(it, comentario.ifBlank { null }) }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                enabled = selectedState != null
+            ) {
                 Text(
-                    text = "No hay transiciones disponibles.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = EcoTextMuted
+                    text = if (selectedState != null)
+                        "Confirmar: ${selectedState!!.replace("_", " ")}"
+                    else
+                        "Selecciona un estado",
+                    fontWeight = FontWeight.Bold
                 )
             }
 
             Spacer(Modifier.height(16.dp))
         }
     }
+}
+
+private fun statusDescription(estado: String): String = when (estado.uppercase()) {
+    "PENDIENTE" -> "Traslado registrado, pendiente de inicio"
+    "EN_TRANSITO" -> "En proceso de transporte"
+    "ENTREGADO" -> "Material entregado en destino"
+    "COMPLETADO" -> "Proceso finalizado y documentado"
+    else -> ""
 }
 
 @Composable
@@ -550,4 +636,52 @@ private fun statusColor(estado: String): Color = when (estado.uppercase()) {
     "ENTREGADO" -> Color(0xFF8B5CF6)
     "COMPLETADO" -> Color(0xFF10B981)
     else -> Color(0xFF64748B)
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, name = "Detalle - Datos")
+@Composable
+private fun TransferDetailPreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        TransferDetailScreen(
+            state = TransferDetailUiState(
+                isLoading = false,
+                transfer = com.ecoadminmovile.core.model.TrasladoDto(
+                    id = 1,
+                    codigo = "ECO-2025-001",
+                    estado = "EN_TRANSITO",
+                    centroProductor = com.ecoadminmovile.core.model.CentroResumenDto(1, "CP-01", "Fábrica Norte"),
+                    centroGestor = com.ecoadminmovile.core.model.CentroResumenDto(2, "CG-01", "Gestor Ambiental S.L."),
+                    residuo = com.ecoadminmovile.core.model.ResiduoResumenDto(1, "R-01", cantidad = 1500.0, unidad = "kg", codigoLER = "17 01 01", descripcion = "Hormigón"),
+                    transportista = com.ecoadminmovile.core.model.UsuarioResumenDto(1, "TransEco S.A.", email = "info@transeco.es"),
+                    ruta = com.ecoadminmovile.core.model.RutaResumenDto(1, "Ruta Norte", distanciaKm = 45.2),
+                    fechaCreacion = "2025-05-01T10:00:00",
+                    fechaInicioTransporte = "2025-05-02T08:00:00",
+                    observaciones = "Carga pesada, requiere grúa"
+                ),
+                historial = listOf(
+                    HistorialEventoDto(estadoAnterior = "PENDIENTE", estadoNuevo = "EN_TRANSITO", fecha = "2025-05-02T08:00:00", comentario = "Inicio de transporte")
+                )
+            ),
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Detalle - Status Sheet")
+@Composable
+private fun TransferDetailStatusSheetPreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        TransferDetailScreen(
+            state = TransferDetailUiState(
+                isLoading = false,
+                showStatusSheet = true,
+                transfer = com.ecoadminmovile.core.model.TrasladoDto(
+                    id = 1, codigo = "ECO-2025-001", estado = "PENDIENTE"
+                )
+            ),
+            onBack = {}
+        )
+    }
 }

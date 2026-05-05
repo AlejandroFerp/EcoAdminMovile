@@ -156,16 +156,16 @@ fun EcoMetricCard(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = value,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = EcoTextStrong
-                )
-                Text(
                     text = title,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = EcoTextMuted
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = EcoTextStrong
                 )
             }
 
