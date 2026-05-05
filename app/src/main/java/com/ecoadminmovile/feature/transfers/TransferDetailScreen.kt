@@ -1,3 +1,20 @@
+/**
+ * Pantalla de detalle de traslado con pestañas (tabs) y HorizontalPager.
+ *
+ * Conceptos Kotlin demostrados:
+ * - private enum class con propiedades (title, icon): enum con constructor.
+ * - .entries: propiedad de Kotlin 1.9+ que reemplaza a values() (más segura y eficiente).
+ * - HorizontalPager + TabRow: combinación para navegación por pestañas deslizables.
+ * - when sobre enum: matching exhaustivo (el compilador obliga a cubrir todos los casos).
+ * - LocalContext.current: acceso al contexto Android desde un Composable.
+ * - Intent(Intent.ACTION_VIEW, uri): navegación a app externa (Google Maps).
+ * - remember { mutableStateOf(...) }: estado local de Compose que sobrevive recomposiciones.
+ * - var ... by: delegación de propiedad con mutableStateOf.
+ *
+ * Patrones de diseño:
+ * - Tab + Pager: navegación por pestañas con contenido swipeable.
+ * - State hoisting: el estado se eleva al padre, los hijos son stateless.
+ */
 package com.ecoadminmovile.feature.transfers
 
 import android.content.Intent
@@ -32,6 +49,8 @@ import com.ecoadminmovile.ui.theme.EcoTextStrong
 import com.ecoadminmovile.ui.theme.EcoTextSubtle
 import kotlinx.coroutines.launch
 
+// private enum class con propiedades: cada entrada tiene title e icon como constructor.
+// A diferencia de Java, en Kotlin los enum pueden tener propiedades declaradas en el constructor.
 private enum class DetailTab(val title: String, val icon: ImageVector) {
     DATOS("Datos", Icons.Rounded.Info),
     DOCUMENTOS("Docs", Icons.Rounded.Description),
@@ -51,6 +70,8 @@ fun TransferDetailScreen(
     onDelete: () -> Unit = {},
     onViewPdf: (String) -> Unit = {}
 ) {
+    // .entries: propiedad Kotlin 1.9+ que devuelve lista inmutable de valores del enum.
+    // Reemplaza a values() que creaba un nuevo array cada vez.
     val tabs = DetailTab.entries
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
@@ -106,7 +127,8 @@ fun TransferDetailScreen(
                 }
             }
 
-            // Pager content
+            // when sobre enum: EXHAUSTIVO — el compilador obliga a cubrir todos los casos.
+            // Si se añade un nuevo tab al enum, este when dará error de compilación hasta cubrirlo.
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -392,6 +414,7 @@ private fun TimelineEvent(evento: HistorialEventoDto) {
 
 @Composable
 private fun MapaTab(transfer: TrasladoDto?) {
+    // LocalContext.current: accede al Context de Android desde un Composable
     val context = LocalContext.current
     val ruta = transfer?.ruta
 
@@ -426,6 +449,8 @@ private fun MapaTab(transfer: TrasladoDto?) {
 
         Button(
             onClick = {
+                // Intent(ACTION_VIEW, uri): abre una app externa capaz de manejar la URI.
+                // Uri.parse construye la URI para Google Maps con origen y destino.
                 val uri = Uri.parse(
                     "https://www.google.com/maps/dir/${ruta.origenLatitud},${ruta.origenLongitud}/${ruta.destinoLatitud},${ruta.destinoLongitud}"
                 )

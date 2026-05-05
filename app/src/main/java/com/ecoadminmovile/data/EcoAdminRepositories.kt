@@ -1,3 +1,27 @@
+/**
+ * Capa de repositorios que encapsula las llamadas a la API y devuelve Result<T>.
+ * Traduce errores HTTP a mensajes legibles para el usuario.
+ *
+ * Conceptos Kotlin demostrados:
+ * - Result<T>: tipo de la stdlib para manejo funcional de errores (Railway-Oriented Programming).
+ *   Envuelve un éxito (Result.success) o un fallo (Result.failure) sin lanzar excepciones.
+ * - suspend fun: funciones de corrutinas para operaciones asíncronas sin callbacks.
+ * - Funciones de extensión privadas: `private fun Response<*>.isUnauthorizedRedirect()`
+ *   añade un método a Response sin modificar la clase original. `private` limita su visibilidad.
+ * - fold(onSuccess, onFailure): descompone un Result en sus dos caminos posibles.
+ * - Higher-order functions: `safeApiCall(request: suspend () -> Response<T>)` recibe una
+ *   función como parámetro (lambda suspendible).
+ * - when expression: reemplazo de if-else-if encadenados, más legible y exhaustivo.
+ * - .orEmpty(): función de extensión que devuelve "" si el String? es null.
+ * - Regex con .toRegex(): convierte un String a expresión regular.
+ * - try-catch como expresión: en Kotlin, try devuelve un valor.
+ * - private class: clase visible solo dentro de este archivo.
+ * - `*` como tipo genérico (star projection): `Response<*>` acepta cualquier tipo.
+ *
+ * Patrones de diseño:
+ * - Repository: abstrae la fuente de datos (API) del resto de la aplicación.
+ * - Railway-Oriented Programming: Result<T> canaliza éxito/error sin excepciones.
+ */
 package com.ecoadminmovile.data
 
 import com.ecoadminmovile.core.model.CentroDto
@@ -15,6 +39,7 @@ import java.io.IOException
 import okhttp3.ResponseBody
 import retrofit2.Response
 
+// private class: solo visible dentro de este archivo (encapsulación a nivel de fichero)
 private class ApiException(message: String) : IllegalStateException(message)
 
 class AuthRepository(
@@ -23,24 +48,29 @@ class AuthRepository(
 ) {
     fun hasActiveSession(): Boolean = preferences.hasSessionCookie()
 
+    // suspend: función de corrutina, se ejecuta sin bloquear el hilo principal
     suspend fun login(email: String, password: String): Result<Unit> {
         preferences.clearSession()
 
+        // try-catch como EXPRESIÓN: todo el bloque devuelve un Result<Unit>
         return try {
             val csrfToken = fetchCsrfToken()
+                // ?: return → operador Elvis con retorno temprano si es null
                 ?: return Result.failure(
                     ApiException("No se pudo obtener el token CSRF del servidor. Verifica que el backend está accesible.")
                 )
 
             val response = api.login(
-                email = email.trim(),
+                email = email.trim(), // .trim() es función de extensión de String
                 password = password,
                 csrfToken = csrfToken
             )
             val code = response.code()
+            // .orEmpty(): si es null devuelve "" (función de extensión de String?)
             val location = response.headers()["Location"].orEmpty()
             val hasSession = preferences.hasSessionCookie()
 
+            // when: expresión que reemplaza cadenas if-else, más legible y exhaustiva
             when {
                 location.contains("/login?error") -> Result.failure(
                     ApiException("Credenciales incorrectas. Verifica tu email y contraseña.")
@@ -53,8 +83,9 @@ class AuthRepository(
                     )
                 )
 
+                // String templates: "$code" y "$location" interpolan variables en strings
                 (code in 300..399 || response.isSuccessful) && hasSession -> {
-                    Result.success(Unit)
+                    Result.success(Unit) // Unit = equivalente a void, pero es un tipo real en Kotlin
                 }
 
                 !hasSession -> Result.failure(
@@ -79,10 +110,11 @@ class AuthRepository(
         return try {
             val response = api.getLoginPage()
             val html = response.body()?.string().orEmpty()
-            // Parse: <input type="hidden" name="_csrf" value="TOKEN_VALUE"/>
+            // .toRegex(): función de extensión que convierte String a Regex
             val regex = """name="_csrf"\s+value="([^"]+)"""".toRegex()
+            // regex.find()?.groupValues?.get(1): encadenamiento seguro con ?.
             regex.find(html)?.groupValues?.get(1)
-        } catch (_: Exception) {
+        } catch (_: Exception) { // _ = variable ignorada (no nos interesa la excepción)
             null
         }
     }
@@ -146,12 +178,15 @@ class CentersRepository(
     suspend fun loadCenter(id: Long): Result<CentroDto> = safeApiCall { api.getCentro(id) }
 }
 
+// Higher-order function: recibe una lambda `suspend () -> Response<T>` como parámetro
+// Genérico <T>: funciona con cualquier tipo de respuesta
 private suspend fun <T> safeApiCall(request: suspend () -> Response<T>): Result<T> {
     return try {
-        val response = request()
+        val response = request() // Invoca la lambda pasada como parámetro
 
         when {
             response.isSuccessful -> {
+                // ?.let { }: solo ejecuta el bloque si body() no es null
                 response.body()?.let { body ->
                     Result.success(body)
                 } ?: Result.failure(ApiException("El servidor devolvio una respuesta vacia."))
@@ -172,10 +207,13 @@ private suspend fun <T> safeApiCall(request: suspend () -> Response<T>): Result<
     }
 }
 
+// Función de extensión privada: añade isUnauthorizedRedirect() a Response<*>
+// Response<*>: star projection, acepta Response de cualquier tipo genérico
 private fun Response<*>.isUnauthorizedRedirect(): Boolean {
     return code() in 300..399 && headers()["Location"]?.contains("/login") == true
 }
 
+// Otra función de extensión privada sobre Response
 private fun Response<*>.toHumanMessage(): String {
     val location = headers()["Location"].orEmpty()
     return when {

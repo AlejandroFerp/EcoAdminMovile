@@ -1,3 +1,17 @@
+/**
+ * Módulo de Hilt que provee los repositorios de la capa de datos.
+ * Cada repositorio encapsula la lógica de acceso a datos (API, BD local, etc.).
+ *
+ * Conceptos Kotlin demostrados:
+ * - Named arguments (argumentos nombrados): `AuthRepository(api = api, preferences = preferences)`
+ *   hace explícito qué valor va a qué parámetro. Mejora la legibilidad y evita errores de orden.
+ * - object declaration: Singleton que contiene los factory methods de DI.
+ *
+ * Patrones de diseño:
+ * - Dependency Injection: Hilt resuelve el grafo de dependencias automáticamente.
+ * - Repository Pattern: cada repository abstrae la fuente de datos del resto de la app.
+ * - Singleton: @Singleton asegura una sola instancia por repositorio.
+ */
 package com.ecoadminmovile.core.di
 
 import com.ecoadminmovile.core.network.EcoAdminApi
@@ -20,6 +34,8 @@ object DataModule {
     @Provides
     @Singleton
     fun provideAuthRepository(api: EcoAdminApi, preferences: AppPreferences): AuthRepository {
+        // Named arguments: api = api, preferences = preferences
+        // Hacen el código autoexplicativo sin depender del orden de parámetros
         return AuthRepository(api = api, preferences = preferences)
     }
 

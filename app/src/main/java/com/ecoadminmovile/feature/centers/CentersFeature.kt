@@ -1,3 +1,20 @@
+/**
+ * Feature de Centros: listado + detalle con ViewModel y Composables.
+ *
+ * Conceptos Kotlin demostrados:
+ * - Múltiples Composables + ViewModel en UN archivo (organización por feature).
+ * - listOf(...): creación de listas inmutables constantes.
+ * - .equals(..., ignoreCase = true): comparación case-insensitive (parámetro named).
+ * - .orEmpty(): convierte String? → String (devuelve "" si null).
+ * - if (text.isBlank()) return: early return para evitar anidación innecesaria.
+ * - Modifier.weight(1f): ocupa espacio proporcional en Row/Column (flexbox).
+ * - Renderizado condicional: `if (state.isLoading) { ... } else { ... }` en Compose.
+ *
+ * Patrones de diseño:
+ * - MVVM con estado reactivo (StateFlow).
+ * - Feature-based organization: todo lo del feature en un archivo.
+ * - Container-Presentational: ViewModel maneja lógica, Composables solo pintan.
+ */
 package com.ecoadminmovile.feature.centers
 
 import androidx.compose.foundation.layout.*
@@ -35,6 +52,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// listOf(): crea lista inmutable. En Kotlin las listas son inmutables por defecto.
 private val CENTER_TYPES = listOf("PRODUCTOR", "GESTOR")
 
 data class CentersUiState(
@@ -94,6 +112,8 @@ class CentersViewModel @Inject constructor(
                     center.codigo.contains(state.searchQuery, ignoreCase = true) ||
                     center.nima?.contains(state.searchQuery, ignoreCase = true) == true
 
+                // .equals(..., ignoreCase = true): comparación sin distinguir mayúsculas/minúsculas.
+                // Named parameter ignoreCase mejora legibilidad.
                 val matchesType = state.selectedType == null ||
                     center.tipo.equals(state.selectedType, ignoreCase = true)
 

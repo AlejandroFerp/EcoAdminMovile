@@ -1,3 +1,20 @@
+/**
+ * Pantalla de listado de traslados con búsqueda, filtros y pull-to-refresh.
+ *
+ * Conceptos Kotlin demostrados:
+ * - internal val: visibilidad a nivel de módulo (solo accesible dentro del mismo módulo Gradle).
+ * - Scaffold: estructura de layout con topBar, floatingActionButton y content.
+ * - items(list, key = { ... }): key permite recomposición eficiente (identifica cada elemento).
+ * - Modifier.weight(1f, fill = false): ocupa espacio proporcional sin llenar todo.
+ * - .ifBlank { }: extensión que ejecuta bloque si el String está vacío.
+ * - listOfNotNull(...): crea lista filtrando automáticamente los valores null.
+ * - .joinToString(): une elementos de una colección en un String.
+ * - .orEmpty(): convierte String? en String (devuelve "" si es null).
+ *
+ * Patrones de diseño:
+ * - Container-Presentational: la pantalla solo muestra datos, la lógica está en el ViewModel.
+ * - Composición de componentes: TransferCard como componente reutilizable.
+ */
 package com.ecoadminmovile.feature.transfers
 
 import androidx.compose.foundation.background
@@ -24,6 +41,8 @@ import com.ecoadminmovile.ui.theme.EcoTextMuted
 import com.ecoadminmovile.ui.theme.EcoTextStrong
 import com.ecoadminmovile.ui.theme.EcoTextSubtle
 
+// internal val: visible solo dentro de este módulo Gradle (no desde otros módulos).
+// Constante a nivel de archivo (top-level declaration) — no necesita clase contenedora.
 internal val TRANSFER_STATES = listOf("PENDIENTE", "EN_TRANSITO", "ENTREGADO", "COMPLETADO")
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,6 +56,8 @@ fun TransfersListScreen(
     onCreateNew: () -> Unit,
     onScanQr: () -> Unit
 ) {
+    // Scaffold: estructura estándar de Material 3 con zonas predefinidas
+    // (topBar, bottomBar, floatingActionButton, content)
     Scaffold(
         floatingActionButton = {
             Column(
@@ -123,6 +144,8 @@ fun TransfersListScreen(
                     }
                 }
 
+                // items con key: key identifica cada elemento para recomposición eficiente.
+                // Sin key, Compose recompone TODO al cambiar la lista.
                 items(state.filteredTransfers, key = { it.id }) { transfer ->
                     TransferCard(
                         transfer = transfer,
@@ -152,6 +175,7 @@ private fun TransferCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // .ifBlank { }: si el código está vacío, usa el id como fallback
                 Text(
                     text = transfer.codigo.ifBlank { "#${transfer.id}" },
                     style = MaterialTheme.typography.bodySmall,
@@ -162,10 +186,11 @@ private fun TransferCard(
             }
 
             // Residuo
+            // listOfNotNull: crea lista eliminando valores null automáticamente
             val residuoText = listOfNotNull(
                 transfer.residuo?.codigoLER,
                 transfer.residuo?.descripcion
-            ).joinToString(" — ").ifBlank { "Sin residuo" }
+            ).joinToString(" — ").ifBlank { "Sin residuo" } // .joinToString(): une con separador
             Text(
                 text = residuoText,
                 style = MaterialTheme.typography.bodyLarge,
@@ -177,10 +202,12 @@ private fun TransferCard(
             // Productor → Gestor
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
+                    // .orEmpty(): convierte String? → String (devuelve "" si null)
                     text = transfer.centroProductor?.nombre.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = EcoTextMuted,
                     maxLines = 1,
+                    // weight(1f, fill = false): ocupa espacio proporcional pero NO se estira
                     modifier = Modifier.weight(1f, fill = false)
                 )
                 Spacer(Modifier.width(6.dp))

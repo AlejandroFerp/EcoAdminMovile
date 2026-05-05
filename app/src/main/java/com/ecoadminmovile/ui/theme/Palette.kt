@@ -1,8 +1,23 @@
+/**
+ * Paleta de colores (design tokens) de la aplicación EcoAdmin.
+ *
+ * Conceptos Kotlin demostrados:
+ * - `val`: referencia inmutable. Una vez asignado, el valor no puede cambiar.
+ * - Declaraciones top-level: en Kotlin no es obligatorio envolver todo en una clase.
+ *   Estas constantes viven directamente en el archivo y se acceden importándolas.
+ * - `Color(0xFF...)`: constructor que recibe un literal hexadecimal UInt.
+ *   El prefijo `0xFF` indica canal alfa al 100% (totalmente opaco).
+ *
+ * Patrón de diseño:
+ * - **Design Tokens / Color Tokens**: centralizar colores con nombres semánticos
+ *   (Primary, Danger, Surface...) para mantener consistencia visual en toda la app.
+ */
 package com.ecoadminmovile.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
 // Base Colors from Web App
+// 0xFF = alfa 255 (opaco) + 6 dígitos hex RGB
 val EcoPrimary = Color(0xFF3B82F6)
 val EcoPrimaryDark = Color(0xFF1D4ED8)
 val EcoDanger = Color(0xFFEF4444)

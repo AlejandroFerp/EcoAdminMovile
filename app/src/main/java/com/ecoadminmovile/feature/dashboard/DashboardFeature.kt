@@ -1,3 +1,21 @@
+/**
+ * Dashboard: Panel de control con métricas y gráficos de progreso.
+ *
+ * Conceptos Kotlin demostrados:
+ * - enum class con propiedades (label, daysBack) y constructor.
+ * - init {} block: se ejecuta al crear la instancia del ViewModel.
+ * - ?.let {}: transformación segura sobre valores nullable (si no es null, ejecuta el bloque).
+ * - .coerceAtLeast(1): evita división por cero de forma idiomática.
+ * - .toFloat() / .toInt(): Kotlin NO tiene conversiones implícitas (a diferencia de Java).
+ * - @OptIn(ExperimentalMaterial3Api::class): acepta uso de APIs experimentales.
+ * - LazyColumn con item {} / items {}: DSL (Domain-Specific Language) para listas eficientes.
+ * - @Preview: permite ver la UI en el IDE sin ejecutar la app.
+ *
+ * Patrones de diseño:
+ * - MVVM con StateFlow unidireccional.
+ * - Pull-to-Refresh (PullToRefreshBox) para recarga manual.
+ * - Observer pattern mediante StateFlow.
+ */
 package com.ecoadminmovile.feature.dashboard
 
 import androidx.compose.foundation.background
@@ -37,11 +55,13 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+// enum class con propiedades: cada entrada tiene label y daysBack.
+// daysBack es Int? (nullable) → ALL no tiene días asociados.
 enum class DashboardPeriod(val label: String, val daysBack: Int?) {
     TODAY("Hoy", 0),
     WEEK("7 días", 7),
     MONTH("30 días", 30),
-    ALL("Todo", null)
+    ALL("Todo", null) // null indica "sin límite de fecha"
 }
 
 data class DashboardUiState(
@@ -58,6 +78,8 @@ class DashboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    // init {}: bloque de inicialización, se ejecuta al crear el ViewModel.
+    // Ideal para cargar datos iniciales.
     init {
         load()
     }
@@ -65,8 +87,11 @@ class DashboardViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            // ?.let { days -> ... }: si daysBack no es null, transforma el valor.
+            // Si es null (periodo ALL), 'desde' será null y no se filtrará por fecha.
             val desde = _uiState.value.selectedPeriod.daysBack?.let { days ->
-                LocalDate.now().minusDays(days.toLong())
+                // LocalDate.now() obtiene fecha actual; .format() la convierte a String
+                LocalDate.now().minusDays(days.toLong()) // .toLong(): conversión EXPLÍCITA (Kotlin no cast implícito)
                     .format(DateTimeFormatter.ISO_LOCAL_DATE)
             }
             repository.loadDashboard(desde).fold(
@@ -88,6 +113,8 @@ class DashboardViewModel @Inject constructor(
     }
 }
 
+// @OptIn: acepta explícitamente el uso de APIs marcadas como experimentales.
+// Sin esto, el compilador genera un warning/error.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -95,11 +122,14 @@ fun DashboardScreen(
     onRefresh: () -> Unit,
     onPeriodSelected: (DashboardPeriod) -> Unit = {}
 ) {
+    // PullToRefreshBox: componente que permite "tirar hacia abajo" para refrescar
     PullToRefreshBox(
         isRefreshing = state.isLoading,
         onRefresh = onRefresh,
         modifier = Modifier.fillMaxSize()
     ) {
+        // LazyColumn: lista virtualizada (solo renderiza elementos visibles, como RecyclerView)
+        // item {} y items {} son parte del DSL (Domain-Specific Language) de LazyColumn
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -209,6 +239,7 @@ fun DashboardScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // .coerceAtLeast(1): asegura que total sea mínimo 1, evitando división por cero
                     val total = (state.data.trasladosPendientes + state.data.trasladosEnTransito + 
                                 state.data.trasladosEntregados + state.data.trasladosCompletados).coerceAtLeast(1)
                     
@@ -231,8 +262,9 @@ fun StatusProgressRow(
     total: Int,
     color: Color
 ) {
+    // .toFloat(): conversión EXPLÍCITA. Kotlin NO convierte Int→Float automáticamente.
     val progress = value.toFloat() / total.toFloat()
-    val percentage = (progress * 100).toInt()
+    val percentage = (progress * 100).toInt() // .toInt(): trunca el decimal
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
@@ -267,6 +299,8 @@ fun StatusProgressRow(
     }
 }
 
+// @Preview: permite visualizar el Composable directamente en Android Studio sin ejecutar la app.
+// Útil para iterar rápido sobre la UI.
 @Preview(showBackground = true)
 @Composable
 fun DashboardScreenPreview() {

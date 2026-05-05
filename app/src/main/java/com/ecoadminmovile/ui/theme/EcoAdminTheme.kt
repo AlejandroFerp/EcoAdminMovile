@@ -1,3 +1,20 @@
+/**
+ * Tema principal de la aplicación EcoAdmin (Material 3).
+ *
+ * Conceptos Kotlin y Compose demostrados:
+ * - `private val`: visibilidad privada al archivo; nadie fuera puede acceder directamente.
+ * - `lightColorScheme()` / `darkColorScheme()`: funciones con parámetros nombrados (named params).
+ *   Kotlin permite llamar funciones indicando el nombre del parámetro para mayor legibilidad.
+ * - `isSystemInDarkTheme()`: función booleana del sistema que detecta el modo oscuro.
+ * - `if` como expresión: en Kotlin `if` devuelve un valor, así que se puede asignar a un `val`.
+ * - `content: @Composable () -> Unit`: parámetro de tipo función composable (trailing lambda).
+ *   Esto implementa el **Slot API pattern**: el tema no dibuja UI, solo PROVEE contexto
+ *   (colores, tipografía) a sus hijos a través de CompositionLocal.
+ *
+ * Patrón:
+ * - **CompositionLocal / Theme Provider**: `MaterialTheme` inyecta valores que cualquier
+ *   descendiente puede leer con `MaterialTheme.colorScheme`, sin pasarlos explícitamente.
+ */
 package com.ecoadminmovile.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -7,6 +24,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+// private val → solo accesible dentro de este archivo
 private val LightColors = lightColorScheme(
     primary = EcoPrimary,
     onPrimary = Color.White,
@@ -42,10 +60,14 @@ private val DarkColors = darkColorScheme(
     error = EcoDanger
 )
 
+// @Composable: esta función participa del ciclo de recomposición de Compose.
+// No retorna UI directamente; provee contexto (colores, tipografía) a sus hijos.
 @Composable
 fun EcoAdminTheme(content: @Composable () -> Unit) {
+    // if como expresión: devuelve un valor que se asigna a colorScheme
     val colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors
 
+    // content es un trailing lambda: el bloque { } que se pasa al llamar EcoAdminTheme { ... }
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,

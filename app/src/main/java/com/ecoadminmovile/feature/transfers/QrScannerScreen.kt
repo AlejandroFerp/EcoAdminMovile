@@ -1,3 +1,19 @@
+/**
+ * Pantalla de escaneo QR usando CameraX + ML Kit para lectura de códigos de barras.
+ *
+ * Conceptos Kotlin demostrados:
+ * - rememberLauncherForActivityResult: Activity Result API en Compose (reemplaza onActivityResult).
+ * - LaunchedEffect(Unit): efecto secundario que se ejecuta UNA sola vez al entrar en composición.
+ * - AndroidView { factory }: integra Views tradicionales de Android dentro de Compose.
+ * - Executors.newSingleThreadExecutor(): crea hilo de fondo para procesamiento de imágenes.
+ * - @OptIn(ExperimentalGetImage::class): acepta uso de API experimental de CameraX.
+ * - var ... by remember { mutableStateOf(...) }: patrón estándar para estado local en Compose.
+ * - Callback pattern: `onResult: (String) -> Unit` como parámetro de función.
+ *
+ * Patrones de diseño:
+ * - Callback/Observer: onQrScanned notifica al padre cuando se detecta un QR.
+ * - Strategy: el ImageAnalysis.Analyzer procesa cada frame de cámara.
+ */
 package com.ecoadminmovile.feature.transfers
 
 import android.Manifest
@@ -34,9 +50,12 @@ import java.util.concurrent.Executors
 @Composable
 fun QrScannerScreen(
     onBack: () -> Unit,
+    // Callback pattern: función que se invoca con el resultado del escaneo
     onQrScanned: (String) -> Unit
 ) {
     val context = LocalContext.current
+    // var ... by remember { mutableStateOf(...) }: estado local mutable que persiste entre recomposiciones.
+    // `by` delega get/set a MutableState (property delegation).
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -44,12 +63,16 @@ fun QrScannerScreen(
         )
     }
 
+    // rememberLauncherForActivityResult: reemplaza startActivityForResult/onActivityResult.
+    // Registra un callback que se ejecuta cuando el sistema devuelve un resultado.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasCameraPermission = granted
     }
 
+    // LaunchedEffect(Unit): se ejecuta UNA SOLA VEZ cuando el Composable entra en composición.
+    // Unit como key = nunca se re-ejecuta (equivale a "on mount" en React).
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -104,6 +127,8 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var scannedOnce by remember { mutableStateOf(false) }
 
+    // AndroidView: permite embeber Views tradicionales de Android dentro de Jetpack Compose.
+    // factory lambda: se ejecuta una vez para crear la View nativa (PreviewView de CameraX).
     AndroidView(
         factory = { ctx ->
             val previewView = PreviewView(ctx)
@@ -120,6 +145,8 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
                     .also { analysis ->
+                        // Executors.newSingleThreadExecutor(): hilo dedicado para procesamiento.
+                        // El análisis de imagen se hace fuera del main thread.
                         analysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
                             processImage(imageProxy) { barcode ->
                                 if (!scannedOnce) {
@@ -149,6 +176,8 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
     )
 }
 
+// @OptIn(ExperimentalGetImage::class): acepta uso de API experimental de CameraX.
+// Sin esta anotación, acceder a imageProxy.image daría error de compilación.
 @OptIn(ExperimentalGetImage::class)
 private fun processImage(imageProxy: ImageProxy, onResult: (String) -> Unit) {
     val mediaImage = imageProxy.image ?: run {

@@ -1,16 +1,34 @@
+/**
+ * Data Transfer Objects (DTOs) que representan las respuestas JSON de la API REST.
+ * Gson deserializa el JSON directamente en estas clases.
+ *
+ * Conceptos Kotlin demostrados:
+ * - data class: genera automáticamente equals(), hashCode(), toString(), copy() y
+ *   componentN() (destructuring). Ideal para objetos que solo transportan datos.
+ * - Valores por defecto en parámetros: `val id: Long = 0` permite crear instancias
+ *   sin especificar todos los campos (útil para deserialización parcial).
+ * - Tipos nullables con `?`: `val telefono: String? = null` indica que el campo puede
+ *   no venir en el JSON. Kotlin obliga a manejar el null explícitamente.
+ * - Tipos genéricos: `Map<String, Int>` especifica los tipos de clave y valor.
+ * - emptyMap(): función de la stdlib que crea un mapa inmutable vacío.
+ *
+ * Patrón de diseño: DTO (Data Transfer Object) — objetos sin lógica que transportan
+ * datos entre capas (red → dominio → UI).
+ */
 package com.ecoadminmovile.core.model
 
+// data class: el compilador genera equals, hashCode, toString, copy y destructuring
 data class UsuarioPerfilDto(
-    val id: Long = 0,
+    val id: Long = 0, // Valor por defecto: si el JSON no trae "id", se usa 0
     val nombre: String = "",
     val email: String = "",
     val rol: String = "",
-    val fechaAlta: String? = null,
+    val fechaAlta: String? = null, // String? = tipo nullable, puede ser null
     val telefono: String? = null,
     val dni: String? = null,
     val cargo: String? = null,
     val fotoUrl: String? = null,
-    val notificacionesEmail: Boolean? = null
+    val notificacionesEmail: Boolean? = null // Boolean nullable: true, false o ausente
 )
 
 data class EstadisticasDto(
@@ -20,7 +38,7 @@ data class EstadisticasDto(
     val trasladosEnTransito: Int = 0,
     val trasladosEntregados: Int = 0,
     val trasladosCompletados: Int = 0,
-    val residuosPorCentro: Map<String, Int> = emptyMap()
+    val residuosPorCentro: Map<String, Int> = emptyMap() // Tipo genérico con valor por defecto vacío
 )
 
 data class TrasladoDto(

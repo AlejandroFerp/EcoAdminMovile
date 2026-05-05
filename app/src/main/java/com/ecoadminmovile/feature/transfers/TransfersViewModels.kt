@@ -1,3 +1,21 @@
+/**
+ * ViewModels para la feature de traslados: listado, detalle y formulario.
+ *
+ * Conceptos Kotlin demostrados:
+ * - Múltiples clases en UN archivo: Kotlin lo permite (a diferencia de Java).
+ * - sealed interface TransferFormField: jerarquía cerrada → when es EXHAUSTIVO.
+ * - Computed property: `val isFormValid: Boolean get() = ...` (se recalcula cada acceso).
+ * - .getOrDefault(): obtiene el valor de Result o un valor por defecto si falló.
+ * - .onSuccess {}: encadenamiento monádico sobre Result (solo ejecuta si fue éxito).
+ * - !! (non-null assertion): fuerza un valor no-nulo; lanza NPE si es null (¡usar con cuidado!).
+ * - .ifBlank { null }: conversión idiomática de String vacío a null.
+ * - SRP (Single Responsibility): cada ViewModel tiene UNA responsabilidad distinta.
+ *
+ * Patrones de diseño:
+ * - MVVM con múltiples ViewModels especializados.
+ * - Sealed types para modelar campos del formulario (type-safe).
+ * - Result monad para manejo funcional de errores.
+ */
 package com.ecoadminmovile.feature.transfers
 
 import androidx.lifecycle.ViewModel
@@ -56,6 +74,8 @@ data class TransferFormUiState(
     val errorMessage: String? = null,
     val savedSuccessfully: Boolean = false
 ) {
+    // Computed property con custom getter: se evalúa cada vez que se accede.
+    // No almacena valor; lo calcula en tiempo real a partir del estado actual.
     val isFormValid: Boolean
         get() = selectedProductorId != null && selectedGestorId != null && selectedResiduoId != null
 }
@@ -227,6 +247,7 @@ class TransferFormViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     editingTransferId = transferId,
+                    // .getOrDefault(): si el Result falló, devuelve emptyList() en vez de lanzar excepción
                     centros = centrosResult.getOrDefault(emptyList()),
                     residuos = residuosResult.getOrDefault(emptyList()),
                     transportistas = transportistasResult.getOrDefault(emptyList()),
@@ -236,6 +257,7 @@ class TransferFormViewModel @Inject constructor(
 
             // If editing, pre-fill fields
             if (transferId != null) {
+                // .onSuccess {}: solo ejecuta el bloque si Result es éxito (encadenamiento monádico)
                 repository.loadTransfer(transferId).onSuccess { transfer ->
                     _uiState.update {
                         it.copy(
@@ -270,11 +292,14 @@ class TransferFormViewModel @Inject constructor(
         if (!state.isFormValid) return
 
         val dto = TrasladoCreateDto(
+            // !! (non-null assertion): garantiza que el valor NO es null.
+            // Si fuera null, lanzaría NullPointerException. Aquí es seguro por isFormValid.
             centroProductorId = state.selectedProductorId!!,
             centroGestorId = state.selectedGestorId!!,
             residuoId = state.selectedResiduoId!!,
             transportistaId = state.selectedTransportistaId,
             rutaId = state.selectedRutaId,
+            // .ifBlank { null }: si el String está vacío o solo espacios, devuelve null
             observaciones = state.observaciones.ifBlank { null }
         )
 

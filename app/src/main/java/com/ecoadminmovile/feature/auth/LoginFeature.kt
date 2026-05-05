@@ -1,3 +1,21 @@
+/**
+ * Pantalla de Login: ViewModel + Composable en un solo archivo (organización por feature).
+ *
+ * Conceptos Kotlin demostrados:
+ * - data class: genera equals(), hashCode(), copy(), toString() automáticamente.
+ * - MutableStateFlow / StateFlow / asStateFlow(): patrón Observer para estado reactivo.
+ * - .update { it.copy(...) }: actualización inmutable del estado (nunca se muta el objeto original).
+ * - Funciones de orden superior: parámetros de tipo función como `onSuccess: () -> Unit`.
+ * - @Composable: anotación para UI declarativa (Jetpack Compose).
+ * - Trailing lambda syntax: `Button(onClick = ...) { contenido }`.
+ * - Named parameters: mejoran legibilidad sin depender del orden.
+ *
+ * Patrones de diseño:
+ * - MVVM (Model-View-ViewModel) con estado unidireccional.
+ * - Inyección de dependencias con Hilt (@HiltViewModel + @Inject constructor).
+ * - Observer pattern mediante StateFlow.
+ * - Builder pattern aplicado en cadenas de Modifier.
+ */
 package com.ecoadminmovile.feature.auth
 
 import androidx.compose.foundation.Image
@@ -41,21 +59,28 @@ import javax.inject.Inject
 val EcoLoginGreen = Color(0xFF1A6B3C)
 val EcoLoginGradient = listOf(Color(0xFF145A32), Color(0xFF1A6B3C), Color(0xFF2D9E5F))
 
+// data class: genera automáticamente equals(), hashCode(), copy() y toString().
+// Todos los campos tienen valores por defecto → se puede instanciar sin argumentos.
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null // String? = tipo nullable, puede ser null
 )
 
+// @HiltViewModel indica a Hilt que este ViewModel necesita inyección de dependencias.
+// @Inject constructor: Hilt proveerá authRepository automáticamente (patrón DI).
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
+    // MutableStateFlow: estado mutable PRIVADO (solo el ViewModel lo modifica)
     private val _uiState = MutableStateFlow(LoginUiState())
+    // StateFlow público + asStateFlow(): expone versión de solo lectura (encapsulación)
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun updateEmail(value: String) {
+        // .update { it.copy(...) }: crea NUEVA instancia con campo modificado (inmutabilidad)
         _uiState.update { it.copy(email = value, errorMessage = null) }
     }
 
@@ -63,6 +88,7 @@ class LoginViewModel @Inject constructor(
         _uiState.update { it.copy(password = value, errorMessage = null) }
     }
 
+    // onSuccess: () -> Unit es un parámetro de tipo función (higher-order function)
     fun submit(onSuccess: () -> Unit) {
         val currentState = _uiState.value
 
@@ -102,6 +128,8 @@ class LoginViewModel @Inject constructor(
     }
 }
 
+// @Composable marca una función como componente de UI declarativa (Jetpack Compose).
+// Los parámetros con tipo función (String) -> Unit permiten comunicación hijo → padre.
 @Composable
 fun LoginScreen(
     state: LoginUiState,
@@ -110,6 +138,7 @@ fun LoginScreen(
     onLoginClick: () -> Unit
 ) {
     Box(
+        // Modifier chain: patrón Builder, cada método devuelve un nuevo Modifier encadenado
         modifier = Modifier
             .fillMaxSize()
             .background(brush = Brush.linearGradient(colors = EcoLoginGradient)),
@@ -203,15 +232,18 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Trailing lambda: el último parámetro lambda puede ir fuera de los paréntesis
                 Button(
                     onClick = onLoginClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = CircleShape,
+                    // Named parameters: mejoran legibilidad, no dependen del orden
                     colors = ButtonDefaults.buttonColors(containerColor = EcoLoginGreen),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
                 ) {
+                    // if como expresión: en Kotlin, if puede devolver un valor
                     if (state.isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
                     } else {
@@ -246,6 +278,7 @@ fun LoginScreen(
     }
 }
 
+// isPassword = false es un parámetro con valor por defecto (evita overloads como en Java)
 @Composable
 fun LoginTextField(
     value: String,
@@ -269,6 +302,7 @@ fun LoginTextField(
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
+        // if como expresión: devuelve PasswordVisualTransformation o None según condición
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = EcoLoginGreen,

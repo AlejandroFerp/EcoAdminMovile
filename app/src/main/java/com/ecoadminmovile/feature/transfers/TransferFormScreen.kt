@@ -1,3 +1,19 @@
+/**
+ * Formulario de creación/edición de traslados con dropdowns genéricos.
+ *
+ * Conceptos Kotlin demostrados:
+ * - sealed interface en `when`: matching exhaustivo (el compilador obliga a cubrir todos los casos).
+ * - Función genérica <T> en Composable: DropdownSelector<T> reutilizable con cualquier tipo.
+ * - `where T : Any`: restricción genérica (T debe ser no-nullable).
+ * - `var expanded by remember { mutableStateOf(false) }`: delegated property con by.
+ * - @Suppress("UNCHECKED_CAST"): suprime warning de cast no seguro.
+ * - buildString { append(...) }: constructor de String eficiente (evita concatenaciones).
+ * - ExposedDropdownMenuBox: patrón Material 3 para dropdowns.
+ *
+ * Patrones de diseño:
+ * - Generic/Template: DropdownSelector<T> funciona con cualquier tipo de dato.
+ * - Sealed types para modelar los campos del formulario de forma type-safe.
+ */
 package com.ecoadminmovile.feature.transfers
 
 import androidx.compose.foundation.layout.*
@@ -106,6 +122,8 @@ fun TransferFormScreen(
                 label = "Ruta asignada",
                 items = state.rutas,
                 selectedId = state.selectedRutaId,
+                // buildString { append(...) }: construye String de forma eficiente
+                // Mejor que concatenar con + (crea menos objetos intermedios)
                 displayText = { buildString {
                     append(it.nombre)
                     it.distanciaKm?.let { km -> append(" · $km km") }
@@ -131,6 +149,8 @@ fun TransferFormScreen(
     }
 }
 
+// Función genérica <T>: funciona con CUALQUIER tipo (CentroDto, ResiduoDto, etc.)
+// `where T : Any` restringe T a tipos no-nullable (T no puede ser null).
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun <T> DropdownSelector(
@@ -141,6 +161,8 @@ private fun <T> DropdownSelector(
     onSelected: (T?) -> Unit,
     optional: Boolean = false
 ) where T : Any {
+    // var ... by remember { mutableStateOf(false) }: delegated property.
+    // `by` delega get/set al objeto MutableState. `remember` persiste entre recomposiciones.
     var expanded by remember { mutableStateOf(false) }
     val selectedItem = items.firstOrNull { itemId(it) == selectedId }
 
@@ -194,6 +216,8 @@ private fun <T> DropdownSelector(
     }
 }
 
+// @Suppress("UNCHECKED_CAST"): suprime el warning del compilador por cast no seguro.
+// Necesario porque no hay forma de verificar el tipo genérico en runtime (type erasure).
 @Suppress("UNCHECKED_CAST")
 private fun <T : Any> itemId(item: T): Long? = when (item) {
     is CentroDto -> item.id
@@ -203,6 +227,8 @@ private fun <T : Any> itemId(item: T): Long? = when (item) {
     else -> null
 }
 
+// sealed interface: jerarquía CERRADA de tipos. El compilador conoce TODOS los subtipos.
+// Esto permite `when` exhaustivo: si se añade un nuevo subtipo, el compilador obliga a manejarlo.
 sealed interface TransferFormField {
     data class Productor(val id: Long?) : TransferFormField
     data class Gestor(val id: Long?) : TransferFormField

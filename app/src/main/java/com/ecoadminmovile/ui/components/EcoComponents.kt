@@ -1,3 +1,19 @@
+/**
+ * Componentes reutilizables de UI para EcoAdmin.
+ *
+ * Conceptos Kotlin y Compose demostrados:
+ * - **Patrón Composable Component**: funciones pequeñas y reutilizables que encapsulan UI.
+ * - `Modifier` como primer parámetro opcional: convención de Compose para permitir
+ *   personalización del layout desde el llamador.
+ * - `ColumnScope.() -> Unit`: lambda con receiver (extension lambda). Dentro del bloque
+ *   se puede llamar a funciones de `ColumnScope` como si fuéramos ese objeto.
+ * - `onClick: (() -> Unit)? = null`: tipo función nullable. Permite pasar o no un callback.
+ * - Renderizado condicional con `if (onClick != null) { ... } else { ... }`.
+ * - Desestructuración: `val (colors, label) = when ...` extrae componentes de un Pair.
+ * - `Triple<A, B, C>`: agrupa 3 valores sin crear una data class dedicada.
+ * - `.uppercase()`: función de extensión de String (convierte a mayúsculas).
+ * - `@Preview`: anotación que permite renderizar el componente en el IDE sin ejecutar la app.
+ */
 package com.ecoadminmovile.ui.components
 
 import androidx.compose.foundation.background
@@ -22,9 +38,9 @@ import com.ecoadminmovile.ui.theme.*
 
 @Composable
 fun EcoCard(
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit
+    modifier: Modifier = Modifier, // Convención Compose: Modifier siempre primer param opcional
+    onClick: (() -> Unit)? = null, // Tipo función nullable: el callback es opcional
+    content: @Composable ColumnScope.() -> Unit // Extension lambda: dentro del bloque hay acceso a ColumnScope
 ) {
     val cardModifier = modifier
         .shadow(
@@ -42,6 +58,7 @@ fun EcoCard(
     )
     val cardShape = RoundedCornerShape(12.dp)
 
+    // Renderizado condicional: se elige Card clickeable o estática según el callback
     if (onClick != null) {
         Card(
             onClick = onClick,
@@ -65,7 +82,10 @@ fun EcoStatusPill(
     status: String,
     modifier: Modifier = Modifier
 ) {
+    // Desestructuración: when retorna Pair<Triple, String> y se separa en (colors, label)
+    // .uppercase() es una extension function de String
     val (colors, label) = when (status.uppercase()) {
+        // Triple<Color,Color,Color> agrupa 3 valores; `to` crea un Pair(Triple, String)
         "PENDIENTE" -> Triple(EcoPendingBg, EcoPendingText, EcoPendingDot) to "Pendiente"
         "EN_TRANSITO" -> Triple(EcoTransitBg, EcoTransitText, EcoTransitDot) to "En tránsito"
         "ENTREGADO" -> Triple(EcoDeliveredBg, EcoDeliveredText, EcoDeliveredDot) to "Entregado"
@@ -73,6 +93,7 @@ fun EcoStatusPill(
         "CANCELADO" -> Triple(EcoCanceledBg, EcoCanceledText, EcoCanceledDot) to "Cancelado"
         else -> Triple(EcoBg, EcoTextMuted, EcoTextSubtle) to status
     }
+    // Desestructuración del Triple en 3 variables independientes
     val (bgColor, textColor, dotColor) = colors
 
     Surface(
@@ -166,6 +187,7 @@ fun EcoMetricCard(
     }
 }
 
+// @Preview: permite al IDE renderizar este componente sin ejecutar la app completa
 @Preview(showBackground = true)
 @Composable
 fun EcoStatusPillPreview() {

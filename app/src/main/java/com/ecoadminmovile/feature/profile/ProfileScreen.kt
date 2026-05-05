@@ -1,3 +1,19 @@
+/**
+ * Pantalla de perfil del usuario autenticado.
+ *
+ * ## Conceptos Kotlin demostrados:
+ * - Función @Composable como pantalla completa (no necesita ViewModel para datos estáticos).
+ * - `Modifier.weight(1f)`: Spacer flexible que empuja el botón al fondo.
+ * - `.take(1).uppercase()`: encadenamiento de extensiones para obtener la inicial del avatar.
+ * - `.isNullOrBlank()`: extensión sobre `String?` (nullable) — safe to call sin `?.`.
+ * - Named parameters: `profileName`, `onLogout` — mejoran legibilidad del call-site.
+ * - `Icons.AutoMirrored`: iconos que se voltean automáticamente en idiomas RTL (árabe, hebreo).
+ *
+ * ## Patrón de diseño — Presentational Component (Container-Presentational):
+ * - Este Composable es puramente "presentacional": recibe datos + callbacks, no tiene lógica.
+ * - El estado y la lógica viven en el padre (EcoAdminApp) que pasa `appState.profile`.
+ * - Ventaja: fácil de testear, reutilizar, y previsualizar con @Preview.
+ */
 package com.ecoadminmovile.feature.profile
 
 import androidx.compose.foundation.background
@@ -22,11 +38,11 @@ import com.ecoadminmovile.ui.theme.EcoTextSubtle
 
 @Composable
 fun ProfileScreen(
-    profileName: String,
+    profileName: String,       // Parámetro no-nullable: siempre tiene valor
     profileEmail: String,
     profileRole: String,
-    profilePhone: String?,
-    onLogout: () -> Unit
+    profilePhone: String?,     // Nullable con `?`: puede no existir teléfono
+    onLogout: () -> Unit       // Función de orden superior: callback sin parámetros que no retorna nada
 ) {
     Column(
         modifier = Modifier

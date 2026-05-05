@@ -1,3 +1,20 @@
+/**
+ * Vista Kanban con HorizontalPager para gestión visual de traslados por estado.
+ *
+ * Conceptos Kotlin demostrados:
+ * - private data class: modelo interno, no visible fuera del archivo.
+ * - private val a nivel de archivo: constantes top-level privadas al archivo.
+ * - rememberPagerState / rememberCoroutineScope: gestión de estado en Compose.
+ * - scope.launch {}: lanzar coroutina desde un Composable para animaciones.
+ * - .forEachIndexed { index, item -> }: iteración con acceso al índice Y al valor.
+ * - .count { predicate }: cuenta elementos que cumplen una condición.
+ * - .filter { }: crea nueva lista con solo los elementos que cumplen el predicado.
+ * - HorizontalPager: páginas deslizables horizontalmente.
+ *
+ * Patrones de diseño:
+ * - Kanban board como patrón de visualización.
+ * - Composición: KanbanCard como componente presentacional reutilizable.
+ */
 package com.ecoadminmovile.feature.transfers
 
 import androidx.compose.foundation.background
@@ -22,6 +39,8 @@ import com.ecoadminmovile.ui.theme.EcoTextStrong
 import com.ecoadminmovile.ui.theme.EcoTextSubtle
 import kotlinx.coroutines.launch
 
+// private data class: solo visible dentro de este archivo.
+// Modela las columnas del Kanban con sus propiedades visuales.
 private data class KanbanColumn(
     val estado: String,
     val label: String,
@@ -29,6 +48,8 @@ private data class KanbanColumn(
     val bgColor: Color
 )
 
+// private val top-level: constante a nivel de archivo, privada.
+// En Kotlin las declaraciones top-level NO necesitan clase contenedora (a diferencia de Java).
 private val KANBAN_COLUMNS = listOf(
     KanbanColumn("PENDIENTE", "Pendiente", Color(0xFFF59E0B), Color(0xFFFEF3C7)),
     KanbanColumn("EN_TRANSITO", "En tránsito", Color(0xFF3B82F6), Color(0xFFDBEAFE)),
@@ -41,7 +62,9 @@ fun TransfersKanbanView(
     transfers: List<TrasladoDto>,
     onTransferSelected: (Long) -> Unit
 ) {
+    // rememberPagerState: recuerda el estado del pager entre recomposiciones
     val pagerState = rememberPagerState(pageCount = { KANBAN_COLUMNS.size })
+    // rememberCoroutineScope: scope de coroutinas atado al ciclo de vida del Composable
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -51,10 +74,13 @@ fun TransfersKanbanView(
             edgePadding = 8.dp,
             divider = {}
         ) {
+            // .forEachIndexed: itera con acceso al índice Y al elemento (útil para tabs)
             KANBAN_COLUMNS.forEachIndexed { index, column ->
+                // .count { predicate }: cuenta cuántos elementos cumplen la condición
                 val count = transfers.count { it.estado.equals(column.estado, ignoreCase = true) }
                 Tab(
                     selected = pagerState.currentPage == index,
+                    // scope.launch {}: lanza coroutina para la animación de scroll
                     onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
                     text = {
                         Row(
@@ -85,12 +111,13 @@ fun TransfersKanbanView(
             }
         }
 
-        // Kanban pages
+        // HorizontalPager: contenedor de páginas deslizables horizontalmente
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val column = KANBAN_COLUMNS[page]
+            // .filter { }: crea nueva lista con solo los traslados de este estado
             val columnTransfers = transfers.filter {
                 it.estado.equals(column.estado, ignoreCase = true)
             }
