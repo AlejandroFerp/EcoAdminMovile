@@ -49,9 +49,9 @@ Objetivo: cerrar la brecha funcional con la web; que el móvil sea igual de pote
 
 ### QR Scanner (cámara nativa)
 - [x] Escanear código QR con CameraX + ML Kit (ya implementado)
-- [ ] Al detectar un QR con código/ID de traslado, mostrar diálogo de confirmación
-- [ ] Al confirmar, avanzar el traslado a la etapa final de su workflow (COMPLETADO)
-- [ ] Feedback visual con vibración y sonido al escanear correctamente
+- [x] Al detectar un QR con código/ID de traslado, mostrar diálogo de confirmación
+- [x] Al confirmar, avanzar el traslado a la etapa final de su workflow (COMPLETADO)
+- [x] Feedback visual con vibración y sonido al escanear correctamente
 
 ### Dashboard mejorado
 - [ ] Métricas en LazyRow (scroll horizontal) para mostrar todos los campos de la web
