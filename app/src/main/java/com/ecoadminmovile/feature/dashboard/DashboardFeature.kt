@@ -22,19 +22,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,6 +45,7 @@ import com.ecoadminmovile.ui.components.EcoMetricCard
 import com.ecoadminmovile.ui.components.EcoStatusPill
 import com.ecoadminmovile.ui.theme.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,42 +77,84 @@ class DashboardViewModel @Inject constructor(
     private val repository: DashboardRepository,
     private val transfersRepository: TransfersRepository
 ) : ViewModel() {
+    // MutableStateFlow: estado mutable INTERNO (solo el ViewModel lo modifica).
+    // StateFlow: version de solo lectura EXPUESTA a la UI (principio de encapsulacion).
+    // .asStateFlow(): convierte MutableStateFlow en StateFlow inmutable para el exterior.
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
-    // init {}: bloque de inicialización, se ejecuta al crear el ViewModel.
-    // Ideal para cargar datos iniciales.
+    // Job cancelable: almacena la referencia a la corrutina de carga actual.
+    // Si el usuario cambia de periodo rapidamente, cancelamos la anterior para evitar
+    // que dos corrutinas compitan por actualizar el estado (race condition).
+    private var loadJob: Job? = null
+
+    // init {}: bloque de inicializacion. Se ejecuta UNA vez al crear el ViewModel.
+    // El ViewModel sobrevive a rotaciones de pantalla (a diferencia de la Activity).
     init {
         load()
     }
 
     fun load() {
-        viewModelScope.launch {
+        // .cancel(): cancela la corrutina anterior si aun esta ejecutandose.
+        // Esto es seguro: si ya termino, cancel() no hace nada.
+        loadJob?.cancel()
+
+        // viewModelScope.launch: lanza una corrutina atada al ciclo de vida del ViewModel.
+        // Cuando el ViewModel se destruye, todas sus corrutinas se cancelan automaticamente.
+        loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            // ?.let {}: si daysBack NO es null, ejecuta el bloque y retorna el resultado.
+            // Si ES null (caso ALL), let no se ejecuta y `desde` queda como null.
+            // El repositorio interpreta desde=null como "sin filtro de fecha".
             val desde = _uiState.value.selectedPeriod.daysBack?.let { days ->
                 LocalDate.now().minusDays(days.toLong())
                     .format(DateTimeFormatter.ISO_LOCAL_DATE)
             }
+
+            // .fold(onSuccess, onFailure): manejo COMPLETO del Result (railway pattern).
+            // A diferencia de .onSuccess{} que ignora errores, fold OBLIGA a tratar ambos caminos.
             repository.loadDashboard(desde).fold(
                 onSuccess = { stats ->
-                    _uiState.update { it.copy(isLoading = false, data = stats) }
+                    _uiState.update { it.copy(data = stats) }
                 },
                 onFailure = { throwable ->
-                    _uiState.update {
-                        it.copy(isLoading = false, errorMessage = throwable.message)
+                    _uiState.update { it.copy(errorMessage = throwable.message) }
+                }
+            )
+
+            // Carga de transfers con manejo EXPLICITO de error.
+            // Antes se usaba .onSuccess{} que tragaba el error silenciosamente.
+            // Ahora usamos .fold() para que si falla, el usuario lo sepa.
+            transfersRepository.loadTransfers().fold(
+                onSuccess = { transfers ->
+                    // .take(10): toma solo los primeros 10 elementos de la lista.
+                    _uiState.update { it.copy(recentTransfers = transfers.take(10)) }
+                },
+                onFailure = { throwable ->
+                    // Si ya hay un errorMessage del dashboard, concatenamos.
+                    _uiState.update { current ->
+                        val msg = "Traslados: " + (throwable.message ?: "Error desconocido")
+                        val combined = if (current.errorMessage != null) {
+                            current.errorMessage + "\n" + msg
+                        } else {
+                            msg
+                        }
+                        current.copy(errorMessage = combined)
                     }
                 }
             )
-            // Load recent transfers for the table
-            transfersRepository.loadTransfers().onSuccess { transfers ->
-                _uiState.update { it.copy(recentTransfers = transfers.take(10)) }
-            }
+
+            // isLoading = false AL FINAL de ambas cargas.
+            // Antes se ponia false tras loadDashboard, dejando un instante
+            // donde la UI parecia "lista" pero faltaban los transfers.
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
     fun setPeriod(period: DashboardPeriod) {
         _uiState.update { it.copy(selectedPeriod = period) }
-        load()
+        load() // load() cancela la anterior internamente (Job cancelable)
     }
 }
 
@@ -199,8 +235,8 @@ fun DashboardScreen(
                         title = "Centros registrados",
                         value = state.data.totalCentros.toString(),
                         icon = Icons.Rounded.Business,
-                        iconBgColor = Color(0xFFEBF2FF),
-                        iconColor = EcoPrimary,
+                        iconBgColor = EcoMetricCentrosBg,
+                        iconColor = EcoMetricCentrosIcon,
                         badgeText = "activo",
                         modifier = Modifier.weight(1f)
                     )
@@ -212,11 +248,11 @@ fun DashboardScreen(
                         title = "Residuos",
                         value = state.data.totalResiduos.toString(),
                         icon = Icons.Rounded.Autorenew,
-                        iconBgColor = Color(0xFFFFF7ED),
-                        iconColor = Color(0xFFF97316),
+                        iconBgColor = EcoMetricResiduosBg,
+                        iconColor = EcoMetricResiduosIcon,
                         badgeText = "peligroso",
-                        badgeColor = Color(0xFFC2410C),
-                        badgeBgColor = Color(0xFFFFEDD5),
+                        badgeColor = EcoMetricResiduosBadge,
+                        badgeBgColor = EcoMetricResiduosBadgeBg,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -228,16 +264,16 @@ fun DashboardScreen(
                         title = "Pendientes",
                         value = state.data.trasladosPendientes.toString(),
                         icon = Icons.Rounded.Schedule,
-                        iconBgColor = Color(0xFFFEFCE8),
-                        iconColor = Color(0xFFEAB308),
+                        iconBgColor = EcoMetricPendingBg,
+                        iconColor = EcoMetricPendingIcon,
                         modifier = Modifier.weight(1f)
                     )
                     EcoMetricCard(
                         title = "En curso",
                         value = state.data.trasladosEnTransito.toString(),
                         icon = Icons.Rounded.SwapHoriz,
-                        iconBgColor = Color(0xFFEBF2FF),
-                        iconColor = Color(0xFF3B82F6),
+                        iconBgColor = EcoMetricTransitBg,
+                        iconColor = EcoMetricTransitIcon,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -249,16 +285,16 @@ fun DashboardScreen(
                         title = "Entregados",
                         value = state.data.trasladosEntregados.toString(),
                         icon = Icons.Rounded.LocalShipping,
-                        iconBgColor = Color(0xFFEDE9FE),
-                        iconColor = Color(0xFF8B5CF6),
+                        iconBgColor = EcoMetricDeliveredBg,
+                        iconColor = EcoMetricDeliveredIcon,
                         modifier = Modifier.weight(1f)
                     )
                     EcoMetricCard(
                         title = "Completados",
                         value = state.data.trasladosCompletados.toString(),
                         icon = Icons.Rounded.CheckCircle,
-                        iconBgColor = Color(0xFFECFDF5),
-                        iconColor = Color(0xFF10B981),
+                        iconBgColor = EcoMetricCompletedBg,
+                        iconColor = EcoMetricCompletedIcon,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -463,8 +499,8 @@ fun StatusProgressRow(
 }
 
 // @Preview: permite visualizar el Composable directamente en Android Studio sin ejecutar la app.
-// Útil para iterar rápido sobre la UI.
-@Preview(showBackground = true)
+// device = "spec:width=411dp,height=1200dp": aumentamos la altura virtual de la preview para ver todo el contenido.
+@Preview(showBackground = true, device = "spec:width=411dp,height=1400dp")
 @Composable
 fun DashboardScreenPreview() {
     EcoAdminTheme {

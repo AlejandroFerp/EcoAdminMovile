@@ -128,17 +128,17 @@ class AuthRepository(
     }
 }
 
-class DashboardRepository(
+open class DashboardRepository(
     private val api: EcoAdminApi
 ) {
-    suspend fun loadDashboard(desde: String? = null): Result<EstadisticasDto> =
+    open suspend fun loadDashboard(desde: String? = null): Result<EstadisticasDto> =
         safeApiCall { api.getEstadisticas(desde) }
 }
 
-class TransfersRepository(
+open class TransfersRepository(
     private val api: EcoAdminApi
 ) {
-    suspend fun loadTransfers(): Result<List<TrasladoDto>> = safeApiCall { api.getTraslados() }
+    open suspend fun loadTransfers(): Result<List<TrasladoDto>> = safeApiCall { api.getTraslados() }
 
     suspend fun loadTransfer(id: Long): Result<TrasladoDto> = safeApiCall { api.getTraslado(id) }
 

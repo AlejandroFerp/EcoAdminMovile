@@ -8,6 +8,8 @@ package com.ecoadminmovile.feature.transfers
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.media.ToneGenerator
+import android.media.AudioManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -106,6 +108,7 @@ fun QrScannerScreen(
                     enabled = scanState is QrScanState.Scanning,
                     onQrDetected = { code ->
                         vibrate(context)
+                        playBeep()
                         val transferId = extractTransferId(code)
                         scanState = QrScanState.Detected(code, transferId)
                     }
@@ -195,6 +198,13 @@ private fun extractTransferId(code: String): Long? {
     val digits = code.filter { it.isDigit() }
     if (digits.length in 1..8) return digits.toLongOrNull()
     return null
+}
+
+private fun playBeep() {
+    try {
+        val tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+        tone.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+    } catch (_: Exception) { /* Audio not critical */ }
 }
 
 @Suppress("DEPRECATION")
