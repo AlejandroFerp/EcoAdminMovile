@@ -70,3 +70,25 @@ data class PerfilUsuarioEntity(
     val fotoUrl: String?,
     val lastSyncedAt: Long = System.currentTimeMillis()
 )
+
+/**
+ * Cola de operaciones pendientes (offline queue).
+ * Almacena escrituras fallidas para reintentarlas cuando haya conectividad.
+ *
+ * operationType: CREATE, UPDATE, DELETE, STATUS_CHANGE
+ * entityType: TRASLADO, CENTRO, RESIDUO, RUTA
+ * payload: JSON serializado de los datos a enviar
+ */
+@Entity(tableName = "pending_operations")
+data class PendingOperationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val operationType: String,
+    val entityType: String,
+    val entityId: Long?,
+    val payload: String,
+    val retryCount: Int = 0,
+    val maxRetries: Int = 5,
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastAttemptAt: Long? = null,
+    val errorMessage: String? = null
+)

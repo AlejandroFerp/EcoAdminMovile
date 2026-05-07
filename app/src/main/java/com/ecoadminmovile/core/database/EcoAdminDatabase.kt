@@ -16,9 +16,11 @@ package com.ecoadminmovile.core.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.ecoadminmovile.core.database.dao.CentroDao
+import com.ecoadminmovile.core.database.dao.PendingOperationDao
 import com.ecoadminmovile.core.database.dao.PerfilUsuarioDao
 import com.ecoadminmovile.core.database.dao.TrasladoDao
 import com.ecoadminmovile.core.database.entity.CentroEntity
+import com.ecoadminmovile.core.database.entity.PendingOperationEntity
 import com.ecoadminmovile.core.database.entity.PerfilUsuarioEntity
 import com.ecoadminmovile.core.database.entity.TrasladoEntity
 
@@ -28,9 +30,10 @@ import com.ecoadminmovile.core.database.entity.TrasladoEntity
     entities = [
         TrasladoEntity::class, // ::class = referencia KClass de la entidad
         CentroEntity::class,
-        PerfilUsuarioEntity::class
+        PerfilUsuarioEntity::class,
+        PendingOperationEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 // abstract class: Room genera la implementación concreta (EcoAdminDatabase_Impl)
@@ -39,4 +42,5 @@ abstract class EcoAdminDatabase : RoomDatabase() {
     abstract fun trasladoDao(): TrasladoDao
     abstract fun centroDao(): CentroDao
     abstract fun perfilUsuarioDao(): PerfilUsuarioDao
+    abstract fun pendingOperationDao(): PendingOperationDao
 }

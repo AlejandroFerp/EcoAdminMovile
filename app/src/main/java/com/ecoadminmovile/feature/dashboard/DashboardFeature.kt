@@ -22,6 +22,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -166,7 +168,10 @@ fun DashboardScreen(
     state: DashboardUiState,
     onRefresh: () -> Unit,
     onPeriodSelected: (DashboardPeriod) -> Unit = {},
-    onTransferSelected: (Long) -> Unit = {}
+    onTransferSelected: (Long) -> Unit = {},
+    onNavigateToResiduos: () -> Unit = {},
+    onNavigateToDocumentos: () -> Unit = {},
+    onNavigateToRutas: () -> Unit = {}
 ) {
     // PullToRefreshBox: componente que permite "tirar hacia abajo" para refrescar
     PullToRefreshBox(
@@ -224,13 +229,13 @@ fun DashboardScreen(
             }
         }
 
-        // Metrics Grid (2 columns)
+        // Metrics in horizontal scroll (LazyRow)
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                item {
                     EcoMetricCard(
                         title = "Centros registrados",
                         value = state.data.totalCentros.toString(),
@@ -238,12 +243,10 @@ fun DashboardScreen(
                         iconBgColor = EcoMetricCentrosBg,
                         iconColor = EcoMetricCentrosIcon,
                         badgeText = "activo",
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(160.dp)
                     )
-
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()){
+                item {
                     EcoMetricCard(
                         title = "Residuos",
                         value = state.data.totalResiduos.toString(),
@@ -253,49 +256,47 @@ fun DashboardScreen(
                         badgeText = "peligroso",
                         badgeColor = EcoMetricResiduosBadge,
                         badgeBgColor = EcoMetricResiduosBadgeBg,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(160.dp)
                     )
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                item {
                     EcoMetricCard(
                         title = "Pendientes",
                         value = state.data.trasladosPendientes.toString(),
                         icon = Icons.Rounded.Schedule,
                         iconBgColor = EcoMetricPendingBg,
                         iconColor = EcoMetricPendingIcon,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(160.dp)
                     )
+                }
+                item {
                     EcoMetricCard(
                         title = "En curso",
                         value = state.data.trasladosEnTransito.toString(),
                         icon = Icons.Rounded.SwapHoriz,
                         iconBgColor = EcoMetricTransitBg,
                         iconColor = EcoMetricTransitIcon,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(160.dp)
                     )
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                item {
                     EcoMetricCard(
                         title = "Entregados",
                         value = state.data.trasladosEntregados.toString(),
                         icon = Icons.Rounded.LocalShipping,
                         iconBgColor = EcoMetricDeliveredBg,
                         iconColor = EcoMetricDeliveredIcon,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(160.dp)
                     )
+                }
+                item {
                     EcoMetricCard(
                         title = "Completados",
                         value = state.data.trasladosCompletados.toString(),
                         icon = Icons.Rounded.CheckCircle,
                         iconBgColor = EcoMetricCompletedBg,
                         iconColor = EcoMetricCompletedIcon,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(160.dp)
                     )
                 }
             }
@@ -445,6 +446,55 @@ fun DashboardScreen(
                             }
                             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
                         }
+                    }
+                }
+            }
+        }
+
+        // Quick-access section for Residuos, Documentos, Rutas
+        item {
+            Text(
+                text = "Gestión",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = EcoTextStrong,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                EcoCard(modifier = Modifier.weight(1f), onClick = onNavigateToResiduos) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Rounded.Science, contentDescription = null, tint = EcoMetricResiduosIcon)
+                        Text("Residuos", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+                EcoCard(modifier = Modifier.weight(1f), onClick = onNavigateToDocumentos) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Rounded.Description, contentDescription = null, tint = EcoMetricPendingIcon)
+                        Text("Documentos", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+                EcoCard(modifier = Modifier.weight(1f), onClick = onNavigateToRutas) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Rounded.Route, contentDescription = null, tint = EcoMetricTransitIcon)
+                        Text("Rutas", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
                 }
             }

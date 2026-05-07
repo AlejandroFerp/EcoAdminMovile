@@ -20,6 +20,7 @@ import android.content.Context
 import androidx.room.Room
 import com.ecoadminmovile.core.database.EcoAdminDatabase
 import com.ecoadminmovile.core.database.dao.CentroDao
+import com.ecoadminmovile.core.database.dao.PendingOperationDao
 import com.ecoadminmovile.core.database.dao.PerfilUsuarioDao
 import com.ecoadminmovile.core.database.dao.TrasladoDao
 import dagger.Module
@@ -42,7 +43,7 @@ object DatabaseModule {
             context,
             EcoAdminDatabase::class.java,
             "ecoadmin_database"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     // Los DAOs se obtienen de la instancia de la BD — Room genera la implementación
@@ -59,5 +60,10 @@ object DatabaseModule {
     @Provides
     fun providePerfilUsuarioDao(database: EcoAdminDatabase): PerfilUsuarioDao {
         return database.perfilUsuarioDao()
+    }
+
+    @Provides
+    fun providePendingOperationDao(database: EcoAdminDatabase): PendingOperationDao {
+        return database.pendingOperationDao()
     }
 }

@@ -17,13 +17,18 @@
  */
 package com.ecoadminmovile.feature.transfers
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.QrCodeScanner
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -38,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ecoadminmovile.core.model.CentroResumenDto
+import com.ecoadminmovile.core.model.HistorialEventoDto
 import com.ecoadminmovile.core.model.ResiduoResumenDto
 import com.ecoadminmovile.core.model.TrasladoDto
 import com.ecoadminmovile.core.model.UsuarioResumenDto
@@ -62,10 +68,101 @@ fun TransfersListScreen(
     onStatusFilter: (String?) -> Unit,
     onCreateNew: () -> Unit,
     onScanQr: () -> Unit,
-    onStatusChange: ((Long, String, String?) -> Unit)? = null
+    onStatusChange: ((Long, String, String?) -> Unit)? = null,
+    onDeleteTransfer: ((Long) -> Unit)? = null,
+    onLoadHistorial: ((Long, (List<HistorialEventoDto>) -> Unit) -> Unit)? = null
 ) {
     // State for inline status change dialog
     var statusChangeTarget by remember { mutableStateOf<TrasladoDto?>(null) }
+    // State for delete confirmation
+    var deleteTarget by remember { mutableStateOf<TrasladoDto?>(null) }
+    // State for quick historial bottom sheet
+    var historialTarget by remember { mutableStateOf<TrasladoDto?>(null) }
+    var historialItems by remember { mutableStateOf<List<HistorialEventoDto>>(emptyList()) }
+    var historialLoading by remember { mutableStateOf(false) }
+
+    // Delete confirmation dialog
+    deleteTarget?.let { transfer ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Eliminar traslado") },
+            text = { Text("¿Eliminar \"${transfer.codigo.ifBlank { "#${transfer.id}" }}\"? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteTransfer?.invoke(transfer.id)
+                        deleteTarget = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    // Quick historial bottom sheet
+    historialTarget?.let { transfer ->
+        ModalBottomSheet(onDismissRequest = {
+            historialTarget = null
+            historialItems = emptyList()
+        }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Historial — ${transfer.codigo.ifBlank { "#${transfer.id}" }}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                if (historialLoading) {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                } else if (historialItems.isEmpty()) {
+                    Text(
+                        text = "Sin eventos registrados",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EcoTextSubtle
+                    )
+                } else {
+                    historialItems.forEach { evento ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "${evento.estadoAnterior.orEmpty().replace("_", " ")} → ${evento.estadoNuevo.replace("_", " ")}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = EcoTextStrong
+                                )
+                                if (!evento.comentario.isNullOrBlank()) {
+                                    Text(
+                                        text = evento.comentario,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = EcoTextMuted
+                                    )
+                                }
+                            }
+                            Text(
+                                text = evento.fecha?.take(16).orEmpty(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EcoTextSubtle
+                            )
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
 
     // Status change bottom sheet (reusable from card)
     statusChangeTarget?.let { transfer ->
@@ -200,7 +297,16 @@ fun TransfersListScreen(
                     TransferCard(
                         transfer = transfer,
                         onClick = { onTransferSelected(transfer.id) },
-                        onOpenStatusChange = { statusChangeTarget = transfer }
+                        onOpenStatusChange = { statusChangeTarget = transfer },
+                        onDelete = { deleteTarget = transfer },
+                        onViewHistorial = {
+                            historialTarget = transfer
+                            historialLoading = true
+                            onLoadHistorial?.invoke(transfer.id) { items ->
+                                historialItems = items
+                                historialLoading = false
+                            }
+                        }
                     )
                 }
             }
@@ -208,16 +314,26 @@ fun TransfersListScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TransferCard(
     transfer: TrasladoDto,
     onClick: () -> Unit,
-    onOpenStatusChange: (() -> Unit)? = null
+    onOpenStatusChange: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
+    onViewHistorial: (() -> Unit)? = null
 ) {
-    EcoCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
-    ) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Box {
+        EcoCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showMenu = true }
+                )
+        ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -304,6 +420,38 @@ private fun TransferCard(
                     }
                 }
             }
+        }
+    }
+
+        // Long-press context menu
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Cambiar estado") },
+                leadingIcon = { Icon(Icons.Rounded.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                onClick = {
+                    showMenu = false
+                    onOpenStatusChange?.invoke()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Ver historial") },
+                leadingIcon = { Icon(Icons.Rounded.History, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                onClick = {
+                    showMenu = false
+                    onViewHistorial?.invoke()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Eliminar", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    showMenu = false
+                    onDelete?.invoke()
+                }
+            )
         }
     }
 }

@@ -1,57 +1,155 @@
 /**
- * Pantalla de perfil del usuario autenticado.
- *
- * ## Conceptos Kotlin demostrados:
- * - Función @Composable como pantalla completa (no necesita ViewModel para datos estáticos).
- * - `Modifier.weight(1f)`: Spacer flexible que empuja el botón al fondo.
- * - `.take(1).uppercase()`: encadenamiento de extensiones para obtener la inicial del avatar.
- * - `.isNullOrBlank()`: extensión sobre `String?` (nullable) — safe to call sin `?.`.
- * - Named parameters: `profileName`, `onLogout` — mejoran legibilidad del call-site.
- * - `Icons.AutoMirrored`: iconos que se voltean automáticamente en idiomas RTL (árabe, hebreo).
- *
- * ## Patrón de diseño — Presentational Component (Container-Presentational):
- * - Este Composable es puramente "presentacional": recibe datos + callbacks, no tiene lógica.
- * - El estado y la lógica viven en el padre (EcoAdminApp) que pasa `appState.profile`.
- * - Ventaja: fácil de testear, reutilizar, y previsualizar con @Preview.
+ * Pantalla de perfil del usuario autenticado con soporte para edición y cambio de contraseña.
  */
 package com.ecoadminmovile.feature.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ecoadminmovile.ui.components.EcoCard
+import com.ecoadminmovile.ui.theme.EcoAdminTheme
 import com.ecoadminmovile.ui.theme.EcoTextMuted
 import com.ecoadminmovile.ui.theme.EcoTextStrong
 import com.ecoadminmovile.ui.theme.EcoTextSubtle
 
 @Composable
 fun ProfileScreen(
-    profileName: String,       // Parámetro no-nullable: siempre tiene valor
+    profileName: String,
     profileEmail: String,
     profileRole: String,
-    profilePhone: String?,     // Nullable con `?`: puede no existir teléfono
-    onLogout: () -> Unit       // Función de orden superior: callback sin parámetros que no retorna nada
+    profilePhone: String?,
+    profileDni: String? = null,
+    profileCargo: String? = null,
+    profileState: ProfileUiState = ProfileUiState(),
+    onLogout: () -> Unit,
+    onStartEditing: () -> Unit = {},
+    onCancelEditing: () -> Unit = {},
+    onSaveProfile: () -> Unit = {},
+    onNombreChanged: (String) -> Unit = {},
+    onTelefonoChanged: (String) -> Unit = {},
+    onDniChanged: (String) -> Unit = {},
+    onCargoChanged: (String) -> Unit = {},
+    onShowPasswordDialog: () -> Unit = {},
+    onDismissPasswordDialog: () -> Unit = {},
+    onCurrentPasswordChanged: (String) -> Unit = {},
+    onNewPasswordChanged: (String) -> Unit = {},
+    onConfirmPasswordChanged: (String) -> Unit = {},
+    onChangePassword: () -> Unit = {},
+    onClearSuccessMessage: () -> Unit = {}
 ) {
+    // Show success snackbar
+    LaunchedEffect(profileState.saveSuccessMessage) {
+        if (profileState.saveSuccessMessage != null) {
+            kotlinx.coroutines.delay(2000)
+            onClearSuccessMessage()
+        }
+    }
+
+    // Password change dialog
+    if (profileState.showPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = onDismissPasswordDialog,
+            title = { Text("Cambiar contraseña") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = profileState.currentPassword,
+                        onValueChange = onCurrentPasswordChanged,
+                        label = { Text("Contraseña actual") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = profileState.newPassword,
+                        onValueChange = onNewPasswordChanged,
+                        label = { Text("Nueva contraseña") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = profileState.confirmPassword,
+                        onValueChange = onConfirmPasswordChanged,
+                        label = { Text("Confirmar contraseña") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    if (profileState.passwordError != null) {
+                        Text(
+                            text = profileState.passwordError,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = onChangePassword,
+                    enabled = !profileState.isChangingPassword
+                ) {
+                    if (profileState.isChangingPassword) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Cambiar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissPasswordDialog) { Text("Cancelar") }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        
+
+        // Success message
+        if (profileState.saveSuccessMessage != null) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = profileState.saveSuccessMessage,
+                    modifier = Modifier.padding(12.dp),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
         // Profile Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -72,8 +170,8 @@ fun ProfileScreen(
                     )
                 }
             }
-            
-            Column {
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = profileName,
                     style = MaterialTheme.typography.titleLarge,
@@ -86,18 +184,130 @@ fun ProfileScreen(
                     color = EcoTextSubtle
                 )
             }
-        }
 
-        EcoCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ProfileInfoRow("Email", profileEmail)
-                if (!profilePhone.isNullOrBlank()) {
-                    ProfileInfoRow("Teléfono", profilePhone)
+            if (!profileState.isEditing) {
+                IconButton(onClick = onStartEditing) {
+                    Icon(Icons.Rounded.Edit, contentDescription = "Editar perfil")
                 }
             }
+        }
+
+        if (profileState.isEditing) {
+            // Edit mode
+            EcoCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Editar datos personales",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    OutlinedTextField(
+                        value = profileState.editNombre,
+                        onValueChange = onNombreChanged,
+                        label = { Text("Nombre *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = profileState.editTelefono,
+                        onValueChange = onTelefonoChanged,
+                        label = { Text("Teléfono") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = profileState.editDni,
+                        onValueChange = onDniChanged,
+                        label = { Text("DNI") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = profileState.editCargo,
+                        onValueChange = onCargoChanged,
+                        label = { Text("Cargo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    if (profileState.errorMessage != null) {
+                        Text(
+                            text = profileState.errorMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedButton(
+                            onClick = onCancelEditing,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) { Text("Cancelar") }
+
+                        Button(
+                            onClick = onSaveProfile,
+                            enabled = !profileState.isSaving,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            if (profileState.isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Text("Guardar")
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // View mode
+            EcoCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ProfileInfoRow("Email", profileEmail)
+                    if (!profilePhone.isNullOrBlank()) {
+                        ProfileInfoRow("Teléfono", profilePhone)
+                    }
+                    if (!profileDni.isNullOrBlank()) {
+                        ProfileInfoRow("DNI", profileDni)
+                    }
+                    if (!profileCargo.isNullOrBlank()) {
+                        ProfileInfoRow("Cargo", profileCargo)
+                    }
+                }
+            }
+        }
+
+        // Change password button
+        OutlinedButton(
+            onClick = onShowPasswordDialog,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Icon(Icons.Rounded.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Cambiar contraseña")
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -112,7 +322,7 @@ fun ProfileScreen(
             Spacer(Modifier.width(8.dp))
             Text(text = "Cerrar sesión")
         }
-        
+
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
@@ -136,29 +346,58 @@ private fun ProfileInfoRow(label: String, value: String) {
 
 // --- Previews ---
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Perfil")
+@Preview(showBackground = true, name = "Perfil - Vista")
 @Composable
 fun ProfileScreenPreview() {
-    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+    EcoAdminTheme {
         ProfileScreen(
-            profileName = "Alejandro García",
-            profileEmail = "alejandro@embention.com",
-            profileRole = "ADMINISTRADOR",
-            profilePhone = "+34 612 345 678",
+            profileName = "Juan García",
+            profileEmail = "juan.garcia@ecoadmin.com",
+            profileRole = "Administrador",
+            profilePhone = "666 123 456",
+            profileDni = "12345678A",
+            profileCargo = "Supervisor de Residuos",
             onLogout = {}
         )
     }
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Perfil sin teléfono")
+@Preview(showBackground = true, name = "Perfil - Editando")
 @Composable
-fun ProfileScreenNoPhonePreview() {
-    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+fun ProfileScreenEditingPreview() {
+    EcoAdminTheme {
         ProfileScreen(
-            profileName = "María López",
-            profileEmail = "maria@embention.com",
-            profileRole = "TRANSPORTISTA",
+            profileName = "Juan García",
+            profileEmail = "juan.garcia@ecoadmin.com",
+            profileRole = "Administrador",
+            profilePhone = "666 123 456",
+            profileState = ProfileUiState(
+                isEditing = true,
+                editNombre = "Juan García López",
+                editTelefono = "666 123 456",
+                editDni = "12345678A",
+                editCargo = "Supervisor"
+            ),
+            onLogout = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Perfil - Contraseña")
+@Composable
+fun ProfileScreenPasswordPreview() {
+    EcoAdminTheme {
+        ProfileScreen(
+            profileName = "Juan García",
+            profileEmail = "juan.garcia@ecoadmin.com",
+            profileRole = "Administrador",
             profilePhone = null,
+            profileState = ProfileUiState(
+                showPasswordDialog = true,
+                newPassword = "123456",
+                confirmPassword = "12345",
+                passwordError = "Las contraseñas no coinciden"
+            ),
             onLogout = {}
         )
     }

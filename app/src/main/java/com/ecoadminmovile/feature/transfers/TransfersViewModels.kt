@@ -148,6 +148,26 @@ class TransfersViewModel @Inject constructor(
             )
         }
     }
+
+    fun deleteTransfer(transferId: Long) {
+        viewModelScope.launch {
+            repository.deleteTransfer(transferId).fold(
+                onSuccess = { load() },
+                onFailure = { throwable ->
+                    _uiState.update { it.copy(errorMessage = throwable.message) }
+                }
+            )
+        }
+    }
+
+    fun loadHistorial(transferId: Long, onResult: (List<HistorialEventoDto>) -> Unit) {
+        viewModelScope.launch {
+            repository.loadHistory(transferId).fold(
+                onSuccess = { onResult(it) },
+                onFailure = { onResult(emptyList()) }
+            )
+        }
+    }
 }
 
 @HiltViewModel

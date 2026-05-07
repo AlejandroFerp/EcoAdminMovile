@@ -23,6 +23,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Person
@@ -131,7 +133,8 @@ fun CentersScreen(
     onRefresh: () -> Unit,
     onSearchChanged: (String) -> Unit = {},
     onTypeFilter: (String?) -> Unit = {},
-    onCenterSelected: (Long) -> Unit = {}
+    onCenterSelected: (Long) -> Unit = {},
+    onCreateNew: () -> Unit = {}
 ) {
     PullToRefreshBox(
         isRefreshing = state.isLoading,
@@ -146,18 +149,27 @@ fun CentersScreen(
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Centros",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = EcoTextStrong
-                )
-                Text(
-                    text = "Gestión de productores y gestores",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = EcoTextSubtle
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Centros",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EcoTextStrong
+                    )
+                    Text(
+                        text = "Gestión de productores y gestores",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EcoTextSubtle
+                    )
+                }
+                FilledTonalButton(onClick = onCreateNew) {
+                    Text("+ Nuevo")
+                }
             }
         }
 
@@ -281,7 +293,9 @@ private fun ContactInfoRow(icon: ImageVector, text: String) {
 data class CenterDetailUiState(
     val isLoading: Boolean = true,
     val center: CentroDto? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val showDeleteConfirmation: Boolean = false,
+    val isDeleting: Boolean = false
 )
 
 @HiltViewModel
@@ -312,14 +326,57 @@ class CenterDetailViewModel @Inject constructor(
             )
         }
     }
+
+    fun showDeleteConfirmation() {
+        _uiState.update { it.copy(showDeleteConfirmation = true) }
+    }
+
+    fun hideDeleteConfirmation() {
+        _uiState.update { it.copy(showDeleteConfirmation = false) }
+    }
+
+    fun deleteCenter(onDeleted: () -> Unit) {
+        val centerId = loadedCenterId ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeleting = true, showDeleteConfirmation = false) }
+            repository.deleteCenter(centerId).fold(
+                onSuccess = { onDeleted() },
+                onFailure = { throwable ->
+                    _uiState.update { it.copy(isDeleting = false, errorMessage = throwable.message) }
+                }
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CenterDetailScreen(
     state: CenterDetailUiState,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    onShowDeleteConfirmation: () -> Unit = {},
+    onDismissDeleteConfirmation: () -> Unit = {}
 ) {
+    // Delete confirmation dialog
+    if (state.showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = onDismissDeleteConfirmation,
+            title = { Text("Eliminar centro") },
+            text = { Text("¿Estás seguro de que deseas eliminar \"${state.center?.nombre}\"? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissDeleteConfirmation) { Text("Cancelar") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -327,6 +384,18 @@ fun CenterDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Rounded.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Rounded.Edit, contentDescription = "Editar")
+                    }
+                    IconButton(onClick = onShowDeleteConfirmation) {
+                        Icon(
+                            Icons.Rounded.Delete,
+                            contentDescription = "Eliminar",
+                            tint = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             )

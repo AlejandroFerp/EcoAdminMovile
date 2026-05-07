@@ -150,3 +150,55 @@ data class TrasladoCreateDto(
     val fechaProgramadaInicio: String? = null,
     val fechaProgramadaFin: String? = null
 )
+
+data class CentroCreateDto(
+    val nombre: String,
+    val tipo: String,
+    val nima: String? = null,
+    val telefono: String? = null,
+    val email: String? = null,
+    val nombreContacto: String? = null,
+    val direccion: DireccionCreateDto? = null
+)
+
+data class DireccionCreateDto(
+    val calle: String? = null,
+    val ciudad: String? = null,
+    val provincia: String? = null,
+    val codigoPostal: String? = null,
+    val pais: String? = null
+)
+
+data class PerfilUpdateDto(
+    val nombre: String,
+    val telefono: String? = null,
+    val dni: String? = null,
+    val cargo: String? = null
+)
+
+data class PasswordChangeDto(
+    val currentPassword: String,
+    val newPassword: String
+)
+
+data class ResiduoCreateDto(
+    val codigoLER: String,
+    val descripcion: String? = null,
+    val cantidad: Double? = null,
+    val unidad: String? = null
+)
+
+data class DocumentoDto(
+    val id: Long = 0,
+    val tipo: String = "",
+    val nombre: String = "",
+    val url: String? = null,
+    val trasladoId: Long? = null,
+    val fechaCreacion: String? = null
+)
+
+data class RutaCreateDto(
+    val nombre: String,
+    val distanciaKm: Double? = null,
+    val transportistaId: Long? = null
+)

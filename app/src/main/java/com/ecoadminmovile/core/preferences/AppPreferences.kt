@@ -15,28 +15,28 @@ package com.ecoadminmovile.core.preferences
 
 import android.content.Context
 
-class AppPreferences(context: Context) {
+open class AppPreferences(context: Context) {
     // getSharedPreferences devuelve la instancia compartida de almacenamiento clave-valor
     private val sharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     // Retorno nullable (String?) — el caller debe manejar el caso null
-    fun getSessionCookie(): String? {
+    open fun getSessionCookie(): String? {
         return sharedPreferences.getString(KEY_SESSION_COOKIE, null)
     }
 
-    fun saveSessionCookie(value: String) {
+    open fun saveSessionCookie(value: String) {
         sharedPreferences.edit()
             .putString(KEY_SESSION_COOKIE, value)
             .apply() // apply() es asíncrono; commit() sería síncrono
     }
 
-    fun hasSessionCookie(): Boolean {
+    open fun hasSessionCookie(): Boolean {
         // isNullOrBlank() es una función de extensión de Kotlin sobre String?
         // Combina la verificación de null Y de contenido vacío/espacios en una sola llamada
         return !getSessionCookie().isNullOrBlank()
     }
 
-    fun clearSession() {
+    open fun clearSession() {
         sharedPreferences.edit()
             .remove(KEY_SESSION_COOKIE)
             .apply()

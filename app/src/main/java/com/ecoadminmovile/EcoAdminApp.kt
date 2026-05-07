@@ -33,8 +33,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -66,11 +69,24 @@ import com.ecoadminmovile.feature.auth.LoginScreen
 import com.ecoadminmovile.feature.auth.LoginViewModel
 import com.ecoadminmovile.feature.centers.CenterDetailScreen
 import com.ecoadminmovile.feature.centers.CenterDetailViewModel
+import com.ecoadminmovile.feature.centers.CenterFormScreen
+import com.ecoadminmovile.feature.centers.CenterFormViewModel
 import com.ecoadminmovile.feature.centers.CentersScreen
 import com.ecoadminmovile.feature.centers.CentersViewModel
 import com.ecoadminmovile.feature.dashboard.DashboardScreen
 import com.ecoadminmovile.feature.dashboard.DashboardViewModel
+import com.ecoadminmovile.feature.documentos.DocumentosListScreen
+import com.ecoadminmovile.feature.documentos.DocumentosViewModel
 import com.ecoadminmovile.feature.profile.ProfileScreen
+import com.ecoadminmovile.feature.profile.ProfileViewModel
+import com.ecoadminmovile.feature.residuos.ResiduoFormScreen
+import com.ecoadminmovile.feature.residuos.ResiduoFormViewModel
+import com.ecoadminmovile.feature.residuos.ResiduosListScreen
+import com.ecoadminmovile.feature.residuos.ResiduosViewModel
+import com.ecoadminmovile.feature.rutas.RutaFormScreen
+import com.ecoadminmovile.feature.rutas.RutaFormViewModel
+import com.ecoadminmovile.feature.rutas.RutasListScreen
+import com.ecoadminmovile.feature.rutas.RutasViewModel
 import com.ecoadminmovile.feature.transfers.TransferDetailScreen
 import com.ecoadminmovile.feature.transfers.TransferDetailViewModel
 import com.ecoadminmovile.feature.transfers.TransferFormScreen
@@ -134,7 +150,14 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
             // Visibilidad del bottom bar: se oculta en pantallas de detalle/formulario
             val showBottomBar = currentRoute != "traslado/{trasladoId}" &&
                 currentRoute != "traslado/form" && currentRoute != "traslado/form/{trasladoId}" &&
-                currentRoute != "qr-scanner"
+                currentRoute != "qr-scanner" &&
+                currentRoute != "centro/{centroId}" &&
+                currentRoute != "centro/form" && currentRoute != "centro/form/{centroId}" &&
+                currentRoute != "residuos" && currentRoute != "residuo/form" &&
+                currentRoute != "residuo/form/{residuoId}" &&
+                currentRoute != "documentos" &&
+                currentRoute != "rutas" && currentRoute != "ruta/form" &&
+                currentRoute != "ruta/form/{rutaId}"
 
             Scaffold(
                 topBar = {
@@ -188,7 +211,10 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onPeriodSelected = dashboardViewModel::setPeriod,
                             onTransferSelected = { transferId ->
                                 navController.navigate("traslado/$transferId")
-                            }
+                            },
+                            onNavigateToResiduos = { navController.navigate("residuos") },
+                            onNavigateToDocumentos = { navController.navigate("documentos") },
+                            onNavigateToRutas = { navController.navigate("rutas") }
                         )
                     }
 
@@ -208,6 +234,12 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onScanQr = { navController.navigate("qr-scanner") },
                             onStatusChange = { id, newStatus, comment ->
                                 transfersViewModel.changeStatus(id, newStatus, comment)
+                            },
+                            onDeleteTransfer = { id ->
+                                transfersViewModel.deleteTransfer(id)
+                            },
+                            onLoadHistorial = { id, onResult ->
+                                transfersViewModel.loadHistorial(id, onResult)
                             }
                         )
                     }
@@ -317,7 +349,46 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onTypeFilter = centersViewModel::filterByType,
                             onCenterSelected = { centerId ->
                                 navController.navigate("centro/$centerId")
-                            }
+                            },
+                            onCreateNew = { navController.navigate("centro/form") }
+                        )
+                    }
+
+                    composable("centro/form") {
+                        val formViewModel: CenterFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        if (formState.savedSuccessfully) {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+
+                        CenterFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onSave = formViewModel::save,
+                            onFieldChanged = formViewModel::onFieldChanged
+                        )
+                    }
+
+                    composable(
+                        route = "centro/form/{centroId}",
+                        arguments = listOf(navArgument("centroId") { type = NavType.LongType })
+                    ) { entry ->
+                        val centerId = entry.arguments?.getLong("centroId") ?: return@composable
+                        val formViewModel: CenterFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(centerId) { formViewModel.initForm(centerId) }
+
+                        if (formState.savedSuccessfully) {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        }
+
+                        CenterFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onSave = formViewModel::save,
+                            onFieldChanged = formViewModel::onFieldChanged
                         )
                     }
 
@@ -339,17 +410,162 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
 
                         CenterDetailScreen(
                             state = detailState,
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            onEdit = { navController.navigate("centro/form/$centerId") },
+                            onDelete = {
+                                centerDetailViewModel.deleteCenter {
+                                    navController.popBackStack()
+                                }
+                            },
+                            onShowDeleteConfirmation = centerDetailViewModel::showDeleteConfirmation,
+                            onDismissDeleteConfirmation = centerDetailViewModel::hideDeleteConfirmation
                         )
                     }
 
                     composable("perfil") {
+                        val profileViewModel: ProfileViewModel = hiltViewModel()
+                        val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
+
                         ProfileScreen(
                             profileName = appState.profile?.nombre.orEmpty(),
                             profileEmail = appState.profile?.email.orEmpty(),
                             profileRole = appState.profile?.rol.orEmpty(),
                             profilePhone = appState.profile?.telefono,
-                            onLogout = appViewModel::logout
+                            profileDni = appState.profile?.dni,
+                            profileCargo = appState.profile?.cargo,
+                            profileState = profileState,
+                            onLogout = appViewModel::logout,
+                            onStartEditing = { profileViewModel.startEditing(appState.profile) },
+                            onCancelEditing = profileViewModel::cancelEditing,
+                            onSaveProfile = {
+                                profileViewModel.saveProfile { updatedProfile ->
+                                    appViewModel.refreshSession(showErrorOnFailure = false)
+                                }
+                            },
+                            onNombreChanged = profileViewModel::updateNombre,
+                            onTelefonoChanged = profileViewModel::updateTelefono,
+                            onDniChanged = profileViewModel::updateDni,
+                            onCargoChanged = profileViewModel::updateCargo,
+                            onShowPasswordDialog = profileViewModel::showPasswordDialog,
+                            onDismissPasswordDialog = profileViewModel::hidePasswordDialog,
+                            onCurrentPasswordChanged = profileViewModel::updateCurrentPassword,
+                            onNewPasswordChanged = profileViewModel::updateNewPassword,
+                            onConfirmPasswordChanged = profileViewModel::updateConfirmPassword,
+                            onChangePassword = profileViewModel::changePassword,
+                            onClearSuccessMessage = profileViewModel::clearSuccessMessage
+                        )
+                    }
+
+                    // --- Residuos ---
+                    composable("residuos") {
+                        val residuosViewModel: ResiduosViewModel = hiltViewModel()
+                        val residuosState by residuosViewModel.uiState.collectAsStateWithLifecycle()
+
+                        ResiduosListScreen(
+                            state = residuosState,
+                            onRefresh = residuosViewModel::load,
+                            onSearchChanged = residuosViewModel::updateSearch,
+                            onResiduoSelected = { /* detail not needed yet */ },
+                            onCreateNew = { navController.navigate("residuo/form") },
+                            onEdit = { id -> navController.navigate("residuo/form/$id") },
+                            onDelete = { id -> residuosViewModel.delete(id) }
+                        )
+                    }
+
+                    composable("residuo/form") {
+                        val formViewModel: ResiduoFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        ResiduoFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onCodigoLERChanged = formViewModel::onCodigoLERChanged,
+                            onDescripcionChanged = formViewModel::onDescripcionChanged,
+                            onCantidadChanged = formViewModel::onCantidadChanged,
+                            onUnidadChanged = formViewModel::onUnidadChanged,
+                            onSave = formViewModel::save
+                        )
+                    }
+
+                    composable(
+                        route = "residuo/form/{residuoId}",
+                        arguments = listOf(navArgument("residuoId") { type = NavType.LongType })
+                    ) { entry ->
+                        val residuoId = entry.arguments?.getLong("residuoId") ?: return@composable
+                        val formViewModel: ResiduoFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(residuoId) { formViewModel.initForm(residuoId) }
+
+                        ResiduoFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onCodigoLERChanged = formViewModel::onCodigoLERChanged,
+                            onDescripcionChanged = formViewModel::onDescripcionChanged,
+                            onCantidadChanged = formViewModel::onCantidadChanged,
+                            onUnidadChanged = formViewModel::onUnidadChanged,
+                            onSave = formViewModel::save
+                        )
+                    }
+
+                    // --- Documentos ---
+                    composable("documentos") {
+                        val documentosViewModel: DocumentosViewModel = hiltViewModel()
+                        val documentosState by documentosViewModel.uiState.collectAsStateWithLifecycle()
+
+                        DocumentosListScreen(
+                            state = documentosState,
+                            onRefresh = documentosViewModel::load,
+                            onFilterChanged = documentosViewModel::filterByTipo,
+                            onOpenDocument = { /* open URL externally if needed */ }
+                        )
+                    }
+
+                    // --- Rutas ---
+                    composable("rutas") {
+                        val rutasViewModel: RutasViewModel = hiltViewModel()
+                        val rutasState by rutasViewModel.uiState.collectAsStateWithLifecycle()
+
+                        RutasListScreen(
+                            state = rutasState,
+                            onRefresh = rutasViewModel::load,
+                            onSearchChanged = rutasViewModel::updateSearch,
+                            onRutaSelected = { /* detail not needed yet */ },
+                            onCreateNew = { navController.navigate("ruta/form") },
+                            onEdit = { id -> navController.navigate("ruta/form/$id") },
+                            onDelete = { id -> rutasViewModel.delete(id) }
+                        )
+                    }
+
+                    composable("ruta/form") {
+                        val formViewModel: RutaFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        RutaFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onNombreChanged = formViewModel::onNombreChanged,
+                            onDistanciaChanged = formViewModel::onDistanciaChanged,
+                            onSave = formViewModel::save
+                        )
+                    }
+
+                    composable(
+                        route = "ruta/form/{rutaId}",
+                        arguments = listOf(navArgument("rutaId") { type = NavType.LongType })
+                    ) { entry ->
+                        val rutaId = entry.arguments?.getLong("rutaId") ?: return@composable
+                        val formViewModel: RutaFormViewModel = hiltViewModel()
+                        val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(rutaId) { formViewModel.initForm(rutaId) }
+
+                        RutaFormScreen(
+                            state = formState,
+                            onBack = { navController.popBackStack() },
+                            onNombreChanged = formViewModel::onNombreChanged,
+                            onDistanciaChanged = formViewModel::onDistanciaChanged,
+                            onSave = formViewModel::save
                         )
                     }
                 }

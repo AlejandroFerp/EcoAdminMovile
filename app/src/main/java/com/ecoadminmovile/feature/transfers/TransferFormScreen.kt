@@ -26,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ecoadminmovile.core.model.CentroDto
 import com.ecoadminmovile.core.model.ResiduoDto
@@ -236,4 +237,45 @@ sealed interface TransferFormField {
     data class Transportista(val id: Long?) : TransferFormField
     data class Ruta(val id: Long?) : TransferFormField
     data class Observaciones(val text: String) : TransferFormField
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, name = "Nuevo Traslado")
+@Composable
+fun TransferFormScreenNewPreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        TransferFormScreen(
+            state = TransferFormUiState(
+                centros = listOf(
+                    CentroDto(id = 1, codigo = "P-001", nombre = "Fábrica Norte", tipo = "PRODUCTOR"),
+                    CentroDto(id = 2, codigo = "G-001", nombre = "EcoGestor", tipo = "GESTOR")
+                ),
+                residuos = listOf(
+                    ResiduoDto(id = 1, codigoLER = "20 01 01", descripcion = "Papel")
+                )
+            ),
+            onBack = {},
+            onSave = {},
+            onFieldChanged = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Traslado - Error")
+@Composable
+fun TransferFormScreenErrorPreview() {
+    com.ecoadminmovile.ui.theme.EcoAdminTheme {
+        TransferFormScreen(
+            state = TransferFormUiState(
+                selectedProductorId = 1,
+                selectedGestorId = 2,
+                selectedResiduoId = 1,
+                errorMessage = "Error al crear el traslado"
+            ),
+            onBack = {},
+            onSave = {},
+            onFieldChanged = {}
+        )
+    }
 }

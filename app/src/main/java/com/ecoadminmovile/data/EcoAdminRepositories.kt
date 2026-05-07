@@ -24,10 +24,20 @@
  */
 package com.ecoadminmovile.data
 
+import com.ecoadminmovile.core.database.dao.CentroDao
+import com.ecoadminmovile.core.database.dao.PendingOperationDao
+import com.ecoadminmovile.core.database.dao.TrasladoDao
+import com.ecoadminmovile.core.database.entity.PendingOperationEntity
+import com.ecoadminmovile.core.model.CentroCreateDto
 import com.ecoadminmovile.core.model.CentroDto
+import com.ecoadminmovile.core.model.DocumentoDto
 import com.ecoadminmovile.core.model.EstadisticasDto
 import com.ecoadminmovile.core.model.HistorialEventoDto
+import com.ecoadminmovile.core.model.PasswordChangeDto
+import com.ecoadminmovile.core.model.PerfilUpdateDto
+import com.ecoadminmovile.core.model.ResiduoCreateDto
 import com.ecoadminmovile.core.model.ResiduoDto
+import com.ecoadminmovile.core.model.RutaCreateDto
 import com.ecoadminmovile.core.model.RutaDto
 import com.ecoadminmovile.core.model.TrasladoCreateDto
 import com.ecoadminmovile.core.model.TrasladoDto
@@ -35,6 +45,8 @@ import com.ecoadminmovile.core.model.UsuarioPerfilDto
 import com.ecoadminmovile.core.model.UsuarioResumenDto
 import com.ecoadminmovile.core.network.EcoAdminApi
 import com.ecoadminmovile.core.preferences.AppPreferences
+import com.ecoadminmovile.core.sync.toDto
+import com.ecoadminmovile.core.sync.toEntity
 import java.io.IOException
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -42,14 +54,14 @@ import retrofit2.Response
 // private class: solo visible dentro de este archivo (encapsulación a nivel de fichero)
 private class ApiException(message: String) : IllegalStateException(message)
 
-class AuthRepository(
+open class AuthRepository(
     private val api: EcoAdminApi,
     private val preferences: AppPreferences
 ) {
-    fun hasActiveSession(): Boolean = preferences.hasSessionCookie()
+    open fun hasActiveSession(): Boolean = preferences.hasSessionCookie()
 
     // suspend: función de corrutina, se ejecuta sin bloquear el hilo principal
-    suspend fun login(email: String, password: String): Result<Unit> {
+    open suspend fun login(email: String, password: String): Result<Unit> {
         preferences.clearSession()
 
         // try-catch como EXPRESIÓN: todo el bloque devuelve un Result<Unit>
@@ -136,9 +148,28 @@ open class DashboardRepository(
 }
 
 open class TransfersRepository(
-    private val api: EcoAdminApi
+    private val api: EcoAdminApi,
+    private val trasladoDao: TrasladoDao? = null,
+    private val pendingOperationDao: PendingOperationDao? = null
 ) {
-    open suspend fun loadTransfers(): Result<List<TrasladoDto>> = safeApiCall { api.getTraslados() }
+    open suspend fun loadTransfers(): Result<List<TrasladoDto>> {
+        val apiResult = safeApiCall { api.getTraslados() }
+        // Cache on success
+        apiResult.onSuccess { transfers ->
+            trasladoDao?.let { dao ->
+                dao.deleteAll()
+                dao.upsertAll(transfers.map { it.toEntity() })
+            }
+        }
+        // Fallback to cache on failure
+        if (apiResult.isFailure && trasladoDao != null) {
+            val cached = trasladoDao.getAll()
+            if (cached.isNotEmpty()) {
+                return Result.success(cached.map { it.toDto() })
+            }
+        }
+        return apiResult
+    }
 
     suspend fun loadTransfer(id: Long): Result<TrasladoDto> = safeApiCall { api.getTraslado(id) }
 
@@ -148,11 +179,30 @@ open class TransfersRepository(
     suspend fun updateTransfer(id: Long, data: TrasladoCreateDto): Result<TrasladoDto> =
         safeApiCall { api.updateTraslado(id, data) }
 
-    suspend fun deleteTransfer(id: Long): Result<Unit> =
-        safeApiCall { api.deleteTraslado(id) }
+    suspend fun deleteTransfer(id: Long): Result<Unit> {
+        val result = safeApiCall { api.deleteTraslado(id) }
+        if (result.isFailure) {
+            pendingOperationDao?.insert(
+                PendingOperationEntity(operationType = "DELETE", entityType = "TRASLADO", entityId = id, payload = "")
+            )
+        }
+        return result
+    }
 
-    suspend fun updateStatus(id: Long, newStatus: String, comentario: String? = null): Result<TrasladoDto> =
-        safeApiCall { api.updateTransferStatus(id, newStatus, comentario) }
+    suspend fun updateStatus(id: Long, newStatus: String, comentario: String? = null): Result<TrasladoDto> {
+        val result = safeApiCall { api.updateTransferStatus(id, newStatus, comentario) }
+        if (result.isFailure) {
+            pendingOperationDao?.insert(
+                PendingOperationEntity(
+                    operationType = "STATUS_CHANGE",
+                    entityType = "TRASLADO",
+                    entityId = id,
+                    payload = "$newStatus|${comentario.orEmpty()}"
+                )
+            )
+        }
+        return result
+    }
 
     suspend fun loadHistory(id: Long): Result<List<HistorialEventoDto>> =
         safeApiCall { api.getTransferHistory(id) }
@@ -161,21 +211,91 @@ open class TransfersRepository(
         safeApiCall { api.getTransferPdf(id, tipo) }
 }
 
-class CatalogRepository(
+open class CatalogRepository(
     private val api: EcoAdminApi
 ) {
-    suspend fun loadCentros(): Result<List<CentroDto>> = safeApiCall { api.getCentros() }
-    suspend fun loadResiduos(): Result<List<ResiduoDto>> = safeApiCall { api.getResiduos() }
-    suspend fun loadTransportistas(): Result<List<UsuarioResumenDto>> = safeApiCall { api.getUsuarios("TRANSPORTISTA") }
-    suspend fun loadRutas(transportistaId: Long? = null): Result<List<RutaDto>> = safeApiCall { api.getRutas(transportistaId) }
+    open suspend fun loadCentros(): Result<List<CentroDto>> = safeApiCall { api.getCentros() }
+    open suspend fun loadResiduos(): Result<List<ResiduoDto>> = safeApiCall { api.getResiduos() }
+    open suspend fun loadTransportistas(): Result<List<UsuarioResumenDto>> = safeApiCall { api.getUsuarios("TRANSPORTISTA") }
+    open suspend fun loadRutas(transportistaId: Long? = null): Result<List<RutaDto>> = safeApiCall { api.getRutas(transportistaId) }
 }
 
-class CentersRepository(
-    private val api: EcoAdminApi
+open class CentersRepository(
+    private val api: EcoAdminApi,
+    private val centroDao: CentroDao? = null
 ) {
-    suspend fun loadCenters(): Result<List<CentroDto>> = safeApiCall { api.getCentros() }
+    suspend fun loadCenters(): Result<List<CentroDto>> {
+        val apiResult = safeApiCall { api.getCentros() }
+        apiResult.onSuccess { centers ->
+            centroDao?.let { dao ->
+                dao.deleteAll()
+                dao.upsertAll(centers.map { it.toEntity() })
+            }
+        }
+        return apiResult
+    }
 
     suspend fun loadCenter(id: Long): Result<CentroDto> = safeApiCall { api.getCentro(id) }
+
+    suspend fun createCenter(data: CentroCreateDto): Result<CentroDto> =
+        safeApiCall { api.createCentro(data) }
+
+    suspend fun updateCenter(id: Long, data: CentroCreateDto): Result<CentroDto> =
+        safeApiCall { api.updateCentro(id, data) }
+
+    suspend fun deleteCenter(id: Long): Result<Unit> =
+        safeApiCall { api.deleteCentro(id) }
+}
+
+open class ProfileRepository(
+    private val api: EcoAdminApi
+) {
+    open suspend fun updateProfile(data: PerfilUpdateDto): Result<UsuarioPerfilDto> =
+        safeApiCall { api.updateProfile(data) }
+
+    open suspend fun changePassword(data: PasswordChangeDto): Result<Unit> =
+        safeApiCall { api.changePassword(data) }
+}
+
+open class ResiduosRepository(
+    private val api: EcoAdminApi
+) {
+    open suspend fun loadAll(): Result<List<ResiduoDto>> = safeApiCall { api.getResiduos() }
+
+    open suspend fun load(id: Long): Result<ResiduoDto> = safeApiCall { api.getResiduo(id) }
+
+    open suspend fun create(data: ResiduoCreateDto): Result<ResiduoDto> =
+        safeApiCall { api.createResiduo(data) }
+
+    open suspend fun update(id: Long, data: ResiduoCreateDto): Result<ResiduoDto> =
+        safeApiCall { api.updateResiduo(id, data) }
+
+    open suspend fun delete(id: Long): Result<Unit> =
+        safeApiCall { api.deleteResiduo(id) }
+}
+
+open class DocumentosRepository(
+    private val api: EcoAdminApi
+) {
+    open suspend fun loadAll(trasladoId: Long? = null): Result<List<DocumentoDto>> =
+        safeApiCall { api.getDocumentos(trasladoId) }
+}
+
+open class RutasRepository(
+    private val api: EcoAdminApi
+) {
+    open suspend fun loadAll(): Result<List<RutaDto>> = safeApiCall { api.getRutas() }
+
+    open suspend fun load(id: Long): Result<RutaDto> = safeApiCall { api.getRuta(id) }
+
+    open suspend fun create(data: RutaCreateDto): Result<RutaDto> =
+        safeApiCall { api.createRuta(data) }
+
+    open suspend fun update(id: Long, data: RutaCreateDto): Result<RutaDto> =
+        safeApiCall { api.updateRuta(id, data) }
+
+    open suspend fun delete(id: Long): Result<Unit> =
+        safeApiCall { api.deleteRuta(id) }
 }
 
 // Higher-order function: recibe una lambda `suspend () -> Response<T>` como parámetro

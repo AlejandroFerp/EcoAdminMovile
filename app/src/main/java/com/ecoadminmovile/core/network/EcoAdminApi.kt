@@ -15,10 +15,16 @@
  */
 package com.ecoadminmovile.core.network
 
+import com.ecoadminmovile.core.model.CentroCreateDto
 import com.ecoadminmovile.core.model.CentroDto
+import com.ecoadminmovile.core.model.DocumentoDto
 import com.ecoadminmovile.core.model.EstadisticasDto
 import com.ecoadminmovile.core.model.HistorialEventoDto
+import com.ecoadminmovile.core.model.PasswordChangeDto
+import com.ecoadminmovile.core.model.PerfilUpdateDto
+import com.ecoadminmovile.core.model.ResiduoCreateDto
 import com.ecoadminmovile.core.model.ResiduoDto
+import com.ecoadminmovile.core.model.RutaCreateDto
 import com.ecoadminmovile.core.model.RutaDto
 import com.ecoadminmovile.core.model.TrasladoCreateDto
 import com.ecoadminmovile.core.model.TrasladoDto
@@ -99,9 +105,41 @@ interface EcoAdminApi {
     @GET("api/centros/{id}")
     suspend fun getCentro(@Path("id") id: Long): Response<CentroDto>
 
+    @POST("api/centros")
+    suspend fun createCentro(@Body body: CentroCreateDto): Response<CentroDto>
+
+    @PUT("api/centros/{id}")
+    suspend fun updateCentro(@Path("id") id: Long, @Body body: CentroCreateDto): Response<CentroDto>
+
+    @DELETE("api/centros/{id}")
+    suspend fun deleteCentro(@Path("id") id: Long): Response<Unit>
+
+    // --- Perfil ---
+    @PUT("api/perfil")
+    suspend fun updateProfile(@Body body: PerfilUpdateDto): Response<UsuarioPerfilDto>
+
+    @PUT("api/perfil/password")
+    suspend fun changePassword(@Body body: PasswordChangeDto): Response<Unit>
+
     // --- Residuos ---
     @GET("api/residuos")
     suspend fun getResiduos(): Response<List<ResiduoDto>>
+
+    @GET("api/residuos/{id}")
+    suspend fun getResiduo(@Path("id") id: Long): Response<ResiduoDto>
+
+    @POST("api/residuos")
+    suspend fun createResiduo(@Body body: ResiduoCreateDto): Response<ResiduoDto>
+
+    @PUT("api/residuos/{id}")
+    suspend fun updateResiduo(@Path("id") id: Long, @Body body: ResiduoCreateDto): Response<ResiduoDto>
+
+    @DELETE("api/residuos/{id}")
+    suspend fun deleteResiduo(@Path("id") id: Long): Response<Unit>
+
+    // --- Documentos ---
+    @GET("api/documentos")
+    suspend fun getDocumentos(@Query("trasladoId") trasladoId: Long? = null): Response<List<DocumentoDto>>
 
     // --- Usuarios ---
     @GET("api/usuarios")
@@ -110,4 +148,16 @@ interface EcoAdminApi {
     // --- Rutas ---
     @GET("api/rutas")
     suspend fun getRutas(@Query("transportistaId") transportistaId: Long? = null): Response<List<RutaDto>>
+
+    @GET("api/rutas/{id}")
+    suspend fun getRuta(@Path("id") id: Long): Response<RutaDto>
+
+    @POST("api/rutas")
+    suspend fun createRuta(@Body body: RutaCreateDto): Response<RutaDto>
+
+    @PUT("api/rutas/{id}")
+    suspend fun updateRuta(@Path("id") id: Long, @Body body: RutaCreateDto): Response<RutaDto>
+
+    @DELETE("api/rutas/{id}")
+    suspend fun deleteRuta(@Path("id") id: Long): Response<Unit>
 }
