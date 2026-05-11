@@ -229,13 +229,10 @@ fun DashboardScreen(
             }
         }
 
-        // Metrics in horizontal scroll (LazyRow)
+        // Metrics in 2 columns
         item {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp)
-            ) {
-                item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     EcoMetricCard(
                         title = "Centros registrados",
                         value = state.data.totalCentros.toString(),
@@ -243,10 +240,8 @@ fun DashboardScreen(
                         iconBgColor = EcoMetricCentrosBg,
                         iconColor = EcoMetricCentrosIcon,
                         badgeText = "activo",
-                        modifier = Modifier.width(160.dp)
+                        modifier = Modifier.weight(1f)
                     )
-                }
-                item {
                     EcoMetricCard(
                         title = "Residuos",
                         value = state.data.totalResiduos.toString(),
@@ -256,47 +251,43 @@ fun DashboardScreen(
                         badgeText = "peligroso",
                         badgeColor = EcoMetricResiduosBadge,
                         badgeBgColor = EcoMetricResiduosBadgeBg,
-                        modifier = Modifier.width(160.dp)
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     EcoMetricCard(
                         title = "Pendientes",
                         value = state.data.trasladosPendientes.toString(),
                         icon = Icons.Rounded.Schedule,
                         iconBgColor = EcoMetricPendingBg,
                         iconColor = EcoMetricPendingIcon,
-                        modifier = Modifier.width(160.dp)
+                        modifier = Modifier.weight(1f)
                     )
-                }
-                item {
                     EcoMetricCard(
                         title = "En curso",
                         value = state.data.trasladosEnTransito.toString(),
                         icon = Icons.Rounded.SwapHoriz,
                         iconBgColor = EcoMetricTransitBg,
                         iconColor = EcoMetricTransitIcon,
-                        modifier = Modifier.width(160.dp)
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     EcoMetricCard(
                         title = "Entregados",
                         value = state.data.trasladosEntregados.toString(),
                         icon = Icons.Rounded.LocalShipping,
                         iconBgColor = EcoMetricDeliveredBg,
                         iconColor = EcoMetricDeliveredIcon,
-                        modifier = Modifier.width(160.dp)
+                        modifier = Modifier.weight(1f)
                     )
-                }
-                item {
                     EcoMetricCard(
                         title = "Completados",
                         value = state.data.trasladosCompletados.toString(),
                         icon = Icons.Rounded.CheckCircle,
                         iconBgColor = EcoMetricCompletedBg,
                         iconColor = EcoMetricCompletedIcon,
-                        modifier = Modifier.width(160.dp)
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
