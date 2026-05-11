@@ -124,12 +124,12 @@ class TransfersViewModel @Inject constructor(
         _uiState.update { state ->
             val filtered = state.transfers.filter { transfer ->
                 val matchesSearch = state.searchQuery.isBlank() ||
-                    transfer.codigo.contains(state.searchQuery, ignoreCase = true) ||
+                    transfer.codigo?.contains(state.searchQuery, ignoreCase = true) == true ||
                     transfer.centroProductor?.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
                     transfer.centroGestor?.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
                     transfer.residuo?.descripcion?.contains(state.searchQuery, ignoreCase = true) == true ||
                     transfer.residuo?.codigoLER?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    transfer.estado.contains(state.searchQuery, ignoreCase = true)
+                    transfer.estado?.contains(state.searchQuery, ignoreCase = true) == true
 
                 val matchesStatus = state.selectedStatus == null ||
                     transfer.estado.equals(state.selectedStatus, ignoreCase = true)
@@ -361,7 +361,7 @@ class QrScannerViewModel @Inject constructor(
             // First load the transfer to determine its current state
             repository.loadTransfer(transferId).fold(
                 onSuccess = { transfer ->
-                    val finalState = resolveCompletionState(transfer.estado)
+                    val finalState = resolveCompletionState(transfer.estado.orEmpty())
                     if (finalState == null) {
                         onResult(false, "El traslado ya está en estado ${transfer.estado}")
                         return@launch

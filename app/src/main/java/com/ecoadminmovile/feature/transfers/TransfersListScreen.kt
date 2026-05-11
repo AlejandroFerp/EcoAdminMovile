@@ -86,7 +86,7 @@ fun TransfersListScreen(
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Eliminar traslado") },
-            text = { Text("¿Eliminar \"${transfer.codigo.ifBlank { "#${transfer.id}" }}\"? Esta acción no se puede deshacer.") },
+            text = { Text("¿Eliminar \"${transfer.codigo.orEmpty().ifBlank { "#${transfer.id}" }}\"? Esta acción no se puede deshacer.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -115,7 +115,7 @@ fun TransfersListScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Historial — ${transfer.codigo.ifBlank { "#${transfer.id}" }}",
+                    text = "Historial — ${transfer.codigo.orEmpty().ifBlank { "#${transfer.id}" }}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -167,7 +167,7 @@ fun TransfersListScreen(
     // Status change bottom sheet (reusable from card)
     statusChangeTarget?.let { transfer ->
         InlineStatusChangeSheet(
-            currentStatus = transfer.estado,
+            currentStatus = transfer.estado.orEmpty(),
             onDismiss = { statusChangeTarget = null },
             onConfirm = { newStatus, comment ->
                 onStatusChange?.invoke(transfer.id, newStatus, comment)
@@ -344,12 +344,12 @@ private fun TransferCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = transfer.codigo.ifBlank { "#${transfer.id}" },
+                    text = transfer.codigo.orEmpty().ifBlank { "#${transfer.id}" },
                     style = MaterialTheme.typography.bodySmall,
                     color = EcoTextSubtle,
                     fontWeight = FontWeight.Bold
                 )
-                EcoStatusPill(status = transfer.estado)
+                EcoStatusPill(status = transfer.estado.orEmpty())
             }
 
             val residuoText = listOfNotNull(

@@ -199,7 +199,7 @@ class SyncWorker @AssistedInject constructor(
 // Extension functions to map DTOs ↔ Entities
 fun TrasladoDto.toEntity() = TrasladoEntity(
     id = id,
-    codigo = codigo,
+    codigo = codigo ?: "",
     centroProductorId = centroProductor?.id,
     centroProductorNombre = centroProductor?.nombre,
     centroGestorId = centroGestor?.id,
@@ -207,7 +207,7 @@ fun TrasladoDto.toEntity() = TrasladoEntity(
     residuoId = residuo?.id,
     residuoNombre = residuo?.descripcion ?: residuo?.codigoLER,
     transportistaNombre = transportista?.nombre,
-    estado = estado,
+    estado = estado ?: "",
     fechaCreacion = fechaCreacion,
     fechaInicioTransporte = fechaInicioTransporte,
     fechaEntrega = fechaEntrega,
@@ -216,8 +216,8 @@ fun TrasladoDto.toEntity() = TrasladoEntity(
 
 fun CentroDto.toEntity() = CentroEntity(
     id = id,
-    codigo = codigo,
-    nombre = nombre,
+    codigo = codigo ?: "",
+    nombre = nombre ?: "",
     tipo = tipo,
     nima = nima,
     telefono = telefono,

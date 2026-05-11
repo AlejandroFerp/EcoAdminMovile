@@ -49,7 +49,7 @@ class TransferDetailViewModelTest {
         val transfer = TrasladoDto(id = 5, codigo = "ECO-005", estado = "EN_TRANSITO")
         coEvery { mockRepo.loadTransfer(5) } returns Result.success(transfer)
         coEvery { mockRepo.loadHistory(5) } returns Result.success(
-            listOf(HistorialEventoDto(estado = "PENDIENTE", fecha = "2026-01-01"))
+            listOf(HistorialEventoDto(estadoAnterior = null, estadoNuevo = "PENDIENTE", fecha = "2026-01-01"))
         )
 
         val vm = createViewModel()
@@ -245,9 +245,9 @@ class TransferFormViewModelTest {
     fun `initForm with id pre-fills from existing transfer`() = runTest {
         val existing = TrasladoDto(
             id = 3, codigo = "ECO-003", estado = "PENDIENTE",
-            centroProductor = CentroDto(id = 10, codigo = "CP", nombre = "Prod", tipo = "PRODUCTOR"),
-            centroGestor = CentroDto(id = 20, codigo = "CG", nombre = "Gest", tipo = "GESTOR"),
-            residuo = ResiduoDto(id = 5, codigoLER = "20 01"),
+            centroProductor = com.ecoadminmovile.core.model.CentroResumenDto(id = 10, codigo = "CP", nombre = "Prod"),
+            centroGestor = com.ecoadminmovile.core.model.CentroResumenDto(id = 20, codigo = "CG", nombre = "Gest"),
+            residuo = com.ecoadminmovile.core.model.ResiduoResumenDto(id = 5, codigoLER = "20 01"),
             observaciones = "Nota previa"
         )
         coEvery { mockCatalog.loadCentros() } returns Result.success(emptyList())

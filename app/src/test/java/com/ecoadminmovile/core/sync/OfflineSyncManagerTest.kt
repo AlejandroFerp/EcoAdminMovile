@@ -240,6 +240,13 @@ class OfflineSyncManagerTest {
         val entity = TrasladoEntity(
             id = 10,
             codigo = "TR-010",
+            centroProductorId = null,
+            centroProductorNombre = null,
+            centroGestorId = null,
+            centroGestorNombre = null,
+            residuoId = null,
+            residuoNombre = null,
+            transportistaNombre = null,
             estado = "BORRADOR",
             fechaCreacion = "2024-02-01",
             fechaInicioTransporte = null,

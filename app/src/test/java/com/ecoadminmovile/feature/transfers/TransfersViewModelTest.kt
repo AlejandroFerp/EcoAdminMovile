@@ -164,5 +164,5 @@ class FakeTransfersRepo : TransfersRepository(
 
     override suspend fun loadTransfers(): Result<List<TrasladoDto>> = loadResult
 
-    suspend fun deleteTransfer(id: Long): Result<Unit> = deleteResult
+    override suspend fun deleteTransfer(id: Long): Result<Unit> = deleteResult
 }

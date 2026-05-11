@@ -159,13 +159,13 @@ fun EcoMetricCard(
                     text = title,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = EcoTextMuted
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = value,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = EcoTextStrong
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 

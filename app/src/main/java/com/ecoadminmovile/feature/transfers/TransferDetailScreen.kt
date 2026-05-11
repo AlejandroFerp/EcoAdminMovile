@@ -97,7 +97,7 @@ fun TransferDetailScreen(
                 },
                 actions = {
                     val hasTransitions = state.transfer?.let {
-                        TransferDetailViewModel.nextStates(it.estado).isNotEmpty()
+                        TransferDetailViewModel.nextStates(it.estado.orEmpty()).isNotEmpty()
                     } ?: false
                     if (hasTransitions) {
                         TextButton(onClick = onShowStatusSheet) {
@@ -197,11 +197,11 @@ private fun DatosTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = transfer.codigo.ifBlank { "#${transfer.id}" },
+                            text = transfer.codigo.orEmpty().ifBlank { "#${transfer.id}" },
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        EcoStatusPill(status = transfer.estado)
+                        EcoStatusPill(status = transfer.estado.orEmpty())
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))

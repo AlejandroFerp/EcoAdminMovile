@@ -24,6 +24,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Lock
@@ -306,10 +307,17 @@ fun LoginTextField(
         // if como expresión: devuelve PasswordVisualTransformation o None según condición
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = EcoTextStrong,
+            unfocusedTextColor = EcoTextStrong,
             focusedBorderColor = EcoLoginGreen,
             unfocusedBorderColor = Color(0xFFC8D6CF),
             focusedLabelColor = EcoLoginGreen,
-            unfocusedLabelColor = Color(0xFF6B7D72)
+            unfocusedLabelColor = Color(0xFF6B7D72),
+            cursorColor = EcoLoginGreen,
+            selectionColors = TextSelectionColors(
+                handleColor = EcoLoginGreen,
+                backgroundColor = EcoLoginGreen.copy(alpha = 0.4f)
+            )
         )
     )
 }

@@ -420,7 +420,7 @@ fun DashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = transfer.codigo.ifBlank { "#${transfer.id}" },
+                                    text = transfer.codigo.orEmpty().ifBlank { "#${transfer.id}" },
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium,
                                     color = EcoPrimary,
@@ -434,7 +434,7 @@ fun DashboardScreen(
                                     modifier = Modifier.weight(1.5f)
                                 )
                                 EcoStatusPill(
-                                    status = transfer.estado,
+                                    status = transfer.estado.orEmpty(),
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(

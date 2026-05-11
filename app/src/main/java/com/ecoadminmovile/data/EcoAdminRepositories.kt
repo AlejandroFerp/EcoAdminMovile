@@ -179,7 +179,7 @@ open class TransfersRepository(
     suspend fun updateTransfer(id: Long, data: TrasladoCreateDto): Result<TrasladoDto> =
         safeApiCall { api.updateTraslado(id, data) }
 
-    suspend fun deleteTransfer(id: Long): Result<Unit> {
+    open suspend fun deleteTransfer(id: Long): Result<Unit> {
         val result = safeApiCall { api.deleteTraslado(id) }
         if (result.isFailure) {
             pendingOperationDao?.insert(

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -14,8 +16,9 @@ android {
         create("release") {
             // Values loaded from local.properties or CI environment variables
             val props = rootProject.file("local.properties")
+            val localProps = Properties()
             if (props.exists()) {
-                val localProps = java.util.Properties().apply { load(props.inputStream()) }
+                props.inputStream().use { localProps.load(it) }
                 storeFile = localProps.getProperty("RELEASE_STORE_FILE")?.let { file(it) }
                 storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
                 keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")

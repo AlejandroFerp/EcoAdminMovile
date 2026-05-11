@@ -78,7 +78,7 @@ class CenterFormViewModel @Inject constructor(
                 onSuccess = { center ->
                     _uiState.value = CenterFormUiState(
                         editingCenterId = center.id,
-                        nombre = center.nombre,
+                        nombre = center.nombre.orEmpty(),
                         tipo = center.tipo ?: CENTER_TYPE_OPTIONS.first(),
                         nima = center.nima.orEmpty(),
                         telefono = center.telefono.orEmpty(),

@@ -110,8 +110,8 @@ class CentersViewModel @Inject constructor(
         _uiState.update { state ->
             val filtered = state.centers.filter { center ->
                 val matchesSearch = state.searchQuery.isBlank() ||
-                    center.nombre.contains(state.searchQuery, ignoreCase = true) ||
-                    center.codigo.contains(state.searchQuery, ignoreCase = true) ||
+                    center.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
+                    center.codigo?.contains(state.searchQuery, ignoreCase = true) == true ||
                     center.nima?.contains(state.searchQuery, ignoreCase = true) == true
 
                 // .equals(..., ignoreCase = true): comparación sin distinguir mayúsculas/minúsculas.
@@ -232,7 +232,7 @@ private fun CenterCard(center: CentroDto, onClick: () -> Unit = {}) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = center.nombre,
+                    text = center.nombre.orEmpty(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = EcoTextStrong
@@ -438,7 +438,7 @@ fun CenterDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = center.nombre,
+                                    text = center.nombre.orEmpty(),
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold
                                 )

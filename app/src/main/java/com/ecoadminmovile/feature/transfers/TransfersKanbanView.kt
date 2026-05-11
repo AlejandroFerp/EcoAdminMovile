@@ -77,7 +77,7 @@ fun TransfersKanbanView(
             // .forEachIndexed: itera con acceso al índice Y al elemento (útil para tabs)
             KANBAN_COLUMNS.forEachIndexed { index, column ->
                 // .count { predicate }: cuenta cuántos elementos cumplen la condición
-                val count = transfers.count { it.estado.equals(column.estado, ignoreCase = true) }
+                val count = transfers.count { it.estado?.equals(column.estado, ignoreCase = true) == true }
                 Tab(
                     selected = pagerState.currentPage == index,
                     // scope.launch {}: lanza coroutina para la animación de scroll
@@ -119,7 +119,7 @@ fun TransfersKanbanView(
             val column = KANBAN_COLUMNS[page]
             // .filter { }: crea nueva lista con solo los traslados de este estado
             val columnTransfers = transfers.filter {
-                it.estado.equals(column.estado, ignoreCase = true)
+                it.estado?.equals(column.estado, ignoreCase = true) == true
             }
 
             LazyColumn(
@@ -179,7 +179,7 @@ private fun KanbanCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = transfer.codigo.ifBlank { "#${transfer.id}" },
+                    text = transfer.codigo.orEmpty().ifBlank { "#${transfer.id}" },
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = accentColor

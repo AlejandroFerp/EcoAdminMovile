@@ -43,13 +43,13 @@ data class EstadisticasDto(
 
 data class TrasladoDto(
     val id: Long = 0,
-    val codigo: String = "",
+    val codigo: String? = null,
     val centroProductor: CentroResumenDto? = null,
     val centroGestor: CentroResumenDto? = null,
     val residuo: ResiduoResumenDto? = null,
     val transportista: UsuarioResumenDto? = null,
     val ruta: RutaResumenDto? = null,
-    val estado: String = "",
+    val estado: String? = null,
     val fechaCreacion: String? = null,
     val fechaInicioTransporte: String? = null,
     val fechaEntrega: String? = null,
@@ -61,8 +61,8 @@ data class TrasladoDto(
 
 data class CentroDto(
     val id: Long = 0,
-    val codigo: String = "",
-    val nombre: String = "",
+    val codigo: String? = null,
+    val nombre: String? = null,
     val tipo: String? = null,
     val usuario: UsuarioResumenDto? = null,
     val direccion: DireccionDto? = null,

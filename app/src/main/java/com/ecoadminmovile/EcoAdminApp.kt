@@ -147,17 +147,8 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
             val currentRoute = backStackEntry?.destination?.route
             val currentTitle = topLevelDestinations.firstOrNull { it.route == currentRoute }?.title
                 ?: "Detalle traslado"
-            // Visibilidad del bottom bar: se oculta en pantallas de detalle/formulario
-            val showBottomBar = currentRoute != "traslado/{trasladoId}" &&
-                currentRoute != "traslado/form" && currentRoute != "traslado/form/{trasladoId}" &&
-                currentRoute != "qr-scanner" &&
-                currentRoute != "centro/{centroId}" &&
-                currentRoute != "centro/form" && currentRoute != "centro/form/{centroId}" &&
-                currentRoute != "residuos" && currentRoute != "residuo/form" &&
-                currentRoute != "residuo/form/{residuoId}" &&
-                currentRoute != "documentos" &&
-                currentRoute != "rutas" && currentRoute != "ruta/form" &&
-                currentRoute != "ruta/form/{rutaId}"
+            // Visibilidad del bottom bar: solo se muestra en los destinos principales
+            val showBottomBar = topLevelDestinations.any { it.route == currentRoute }
 
             Scaffold(
                 topBar = {

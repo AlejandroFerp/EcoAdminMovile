@@ -86,7 +86,7 @@ fun TransferFormScreen(
                 label = "Centro Productor *",
                 items = state.centros,
                 selectedId = state.selectedProductorId,
-                displayText = { it.nombre },
+                displayText = { it.nombre.orEmpty() },
                 onSelected = { onFieldChanged(TransferFormField.Productor(it?.id)) }
             )
 
@@ -95,7 +95,7 @@ fun TransferFormScreen(
                 label = "Centro Gestor *",
                 items = state.centros,
                 selectedId = state.selectedGestorId,
-                displayText = { it.nombre },
+                displayText = { it.nombre.orEmpty() },
                 onSelected = { onFieldChanged(TransferFormField.Gestor(it?.id)) }
             )
 
