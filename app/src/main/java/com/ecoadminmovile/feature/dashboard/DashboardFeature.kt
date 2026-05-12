@@ -22,8 +22,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -34,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -234,12 +233,11 @@ fun DashboardScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     EcoMetricCard(
-                        title = "Centros registrados",
+                        title = "Centros",
                         value = state.data.totalCentros.toString(),
                         icon = Icons.Rounded.Business,
                         iconBgColor = EcoMetricCentrosBg,
                         iconColor = EcoMetricCentrosIcon,
-                        badgeText = "activo",
                         modifier = Modifier.weight(1f)
                     )
                     EcoMetricCard(
@@ -248,7 +246,6 @@ fun DashboardScreen(
                         icon = Icons.Rounded.Autorenew,
                         iconBgColor = EcoMetricResiduosBg,
                         iconColor = EcoMetricResiduosIcon,
-                        badgeText = "peligroso",
                         badgeColor = EcoMetricResiduosBadge,
                         badgeBgColor = EcoMetricResiduosBadgeBg,
                         modifier = Modifier.weight(1f)
@@ -393,10 +390,10 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Código", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(1f))
-                            Text("Residuo", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(1.5f))
-                            Text("Estado", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(1f))
-                            Text("Fecha", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(1f))
+                            Text("Código", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(0.8f))
+                            Text("Residuo", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(1.1f))
+                            Text("Estado", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(1.5f))
+                            Text("Fecha", style = MaterialTheme.typography.labelSmall, color = EcoTextSubtle, modifier = Modifier.weight(1.1f), textAlign = TextAlign.End)
                         }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
 
@@ -415,24 +412,25 @@ fun DashboardScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium,
                                     color = EcoPrimary,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(0.8f)
                                 )
                                 Text(
                                     text = transfer.residuo?.codigoLER.orEmpty(),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = EcoTextMuted,
                                     maxLines = 1,
-                                    modifier = Modifier.weight(1.5f)
+                                    modifier = Modifier.weight(1.1f)
                                 )
                                 EcoStatusPill(
                                     status = transfer.estado.orEmpty(),
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1.5f)
                                 )
                                 Text(
                                     text = transfer.fechaCreacion?.take(10).orEmpty(),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = EcoTextSubtle,
-                                    modifier = Modifier.weight(1f)
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.weight(1.1f)
                                 )
                             }
                             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.05f))
