@@ -297,7 +297,20 @@ open class RutasRepository(
 ) {
     open suspend fun loadAll(): Result<List<RutaDto>> = safeApiCall { api.getRutas() }
 
-    open suspend fun load(id: Long): Result<RutaDto> = safeApiCall { api.getRuta(id) }
+    open suspend fun load(id: Long): Result<RutaDto> {
+        val allResult = loadAll()
+        return if (allResult.isSuccess) {
+            val list = allResult.getOrNull()
+            val ruta = list?.firstOrNull { it.id == id }
+            if (ruta != null) {
+                Result.success(ruta)
+            } else {
+                Result.failure(Exception("Ruta con ID $id no encontrada"))
+            }
+        } else {
+            Result.failure(allResult.exceptionOrNull() ?: Exception("Error al cargar rutas"))
+        }
+    }
 
     open suspend fun create(data: RutaCreateDto): Result<RutaDto> =
         safeApiCall { api.createRuta(data) }
@@ -344,11 +357,13 @@ private fun Response<*>.isUnauthorizedRedirect(): Boolean {
     return code() in 300..399 && headers()["Location"]?.contains("/login") == true
 }
 
-// Otra función de extensión privada sobre Response
 private fun Response<*>.toHumanMessage(): String {
     val location = headers()["Location"].orEmpty()
     return when {
         location.contains("/login") -> "La sesion ya no es valida."
+        code() == 409 -> "No se puede eliminar el elemento porque tiene registros asociados en el servidor (conflicto de integridad)."
+        code() == 403 -> "No tienes permisos para realizar esta accion."
+        code() == 404 -> "El elemento solicitado no existe."
         message().isNotBlank() -> message()
         else -> "Respuesta inesperada del servidor (${code()})."
     }

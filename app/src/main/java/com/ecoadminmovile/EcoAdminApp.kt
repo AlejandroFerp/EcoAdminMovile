@@ -264,6 +264,10 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                         val transfersViewModel: TransfersViewModel = hiltViewModel()
                         val transfersState by transfersViewModel.uiState.collectAsStateWithLifecycle()
 
+                        LaunchedEffect(Unit) {
+                            transfersViewModel.load()
+                        }
+
                         TransfersListScreen(
                             state = transfersState,
                             onRefresh = transfersViewModel::load,
@@ -384,6 +388,10 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                         val centersViewModel: CentersViewModel = hiltViewModel()
                         val centersState by centersViewModel.uiState.collectAsStateWithLifecycle()
 
+                        LaunchedEffect(Unit) {
+                            centersViewModel.load()
+                        }
+
                         CentersScreen(
                             state = centersState,
                             onRefresh = centersViewModel::load,
@@ -503,6 +511,10 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                         val residuosViewModel: ResiduosViewModel = hiltViewModel()
                         val residuosState by residuosViewModel.uiState.collectAsStateWithLifecycle()
 
+                        LaunchedEffect(Unit) {
+                            residuosViewModel.load()
+                        }
+
                         ResiduosListScreen(
                             state = residuosState,
                             onRefresh = residuosViewModel::load,
@@ -574,6 +586,10 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                     composable("rutas") {
                         val rutasViewModel: RutasViewModel = hiltViewModel()
                         val rutasState by rutasViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(Unit) {
+                            rutasViewModel.load()
+                        }
 
                         RutasListScreen(
                             state = rutasState,

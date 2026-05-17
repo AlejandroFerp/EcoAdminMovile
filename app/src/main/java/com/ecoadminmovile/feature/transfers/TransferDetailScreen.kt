@@ -436,21 +436,36 @@ private fun TimelineEvent(evento: HistorialEventoDto) {
 
 @Composable
 private fun MapaTab(transfer: TrasladoDto?) {
-    // LocalContext.current: accede al Context de Android desde un Composable
     val context = LocalContext.current
     val ruta = transfer?.ruta
+    val productor = transfer?.centroProductor
+    val gestor = transfer?.centroGestor
 
-    if (ruta == null || ruta.origenLatitud == null || ruta.destinoLatitud == null) {
+    if (ruta == null) {
         Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Sin ruta con coordenadas asignada", color = EcoTextSubtle)
+                Text("Sin ruta asignada", color = EcoTextSubtle)
                 Text("Asigna una ruta para ver el mapa", style = MaterialTheme.typography.bodySmall, color = EcoTextMuted)
             }
         }
         return
     }
 
-    // Open in external maps app
+    val hasCoordinates = ruta.origenLatitud != null && ruta.origenLongitud != null &&
+                         ruta.destinoLatitud != null && ruta.destinoLongitud != null
+
+    val hasCenters = productor != null && gestor != null
+
+    if (!hasCoordinates && !hasCenters) {
+        Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Informacion de ruta incompleta", color = EcoTextSubtle)
+                Text("Se requiere origen y destino para calcular la ruta", style = MaterialTheme.typography.bodySmall, color = EcoTextMuted)
+            }
+        }
+        return
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -464,18 +479,24 @@ private fun MapaTab(transfer: TrasladoDto?) {
                 ruta.distanciaKm?.let {
                     Text("Distancia: $it km", color = EcoTextMuted)
                 }
-                DetailField("Origen", "${ruta.origenLatitud}, ${ruta.origenLongitud}")
-                DetailField("Destino", "${ruta.destinoLatitud}, ${ruta.destinoLongitud}")
+                if (hasCoordinates) {
+                    DetailField("Origen (Coordenadas)", "${ruta.origenLatitud}, ${ruta.origenLongitud}")
+                    DetailField("Destino (Coordenadas)", "${ruta.destinoLatitud}, ${ruta.destinoLongitud}")
+                } else {
+                    DetailField("Origen (Centro Productor)", productor?.nombre.orEmpty())
+                    DetailField("Destino (Centro Gestor)", gestor?.nombre.orEmpty())
+                }
             }
         }
 
         Button(
             onClick = {
-                // Intent(ACTION_VIEW, uri): abre una app externa capaz de manejar la URI.
-                // Uri.parse construye la URI para Google Maps con origen y destino.
-                val uri = Uri.parse(
-                    "https://www.google.com/maps/dir/${ruta.origenLatitud},${ruta.origenLongitud}/${ruta.destinoLatitud},${ruta.destinoLongitud}"
-                )
+                val uri = if (hasCoordinates) {
+                    Uri.parse("https://www.google.com/maps/dir/${ruta.origenLatitud},${ruta.origenLongitud}/${ruta.destinoLatitud},${ruta.destinoLongitud}")
+                } else {
+                    // Fallback using center names encoded safely for the Google Maps query
+                    Uri.parse("https://www.google.com/maps/dir/${Uri.encode(productor?.nombre)}/${Uri.encode(gestor?.nombre)}")
+                }
                 context.startActivity(Intent(Intent.ACTION_VIEW, uri))
             },
             modifier = Modifier.fillMaxWidth()

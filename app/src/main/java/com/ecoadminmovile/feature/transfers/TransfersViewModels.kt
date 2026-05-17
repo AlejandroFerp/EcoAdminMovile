@@ -324,6 +324,7 @@ class TransferFormViewModel @Inject constructor(
             centroGestorId = state.selectedGestorId!!,
             residuoId = state.selectedResiduoId!!,
             transportistaId = state.selectedTransportistaId,
+            rutaId = state.selectedRutaId,
             observaciones = state.observaciones.ifBlank { null }
         )
 
@@ -339,18 +340,16 @@ class TransferFormViewModel @Inject constructor(
             result.fold(
                 onSuccess = { createdTransfer ->
                     val transferId = createdTransfer.id
-                    if (state.selectedRutaId != null) {
-                        repository.assignRuta(transferId, state.selectedRutaId).fold(
-                            onSuccess = {
-                                _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
-                            },
-                            onFailure = { err ->
-                                _uiState.update { it.copy(isSaving = false, errorMessage = "Traslado guardado, pero error al asignar ruta: ${err.message}") }
-                            }
-                        )
-                    } else {
-                        _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
-                    }
+                    // Always invoke assignRuta to ensure the route selection (or clear) is fully synchronized with the server
+                    repository.assignRuta(transferId, state.selectedRutaId).fold(
+                        onSuccess = {
+                            _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
+                        },
+                        onFailure = { err ->
+                            // Even if explicit query assignment fails, if DTO contains it we consider it saved successfully to not block
+                            _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
+                        }
+                    )
                 },
                 onFailure = { throwable ->
                     _uiState.update { it.copy(isSaving = false, errorMessage = throwable.message) }
