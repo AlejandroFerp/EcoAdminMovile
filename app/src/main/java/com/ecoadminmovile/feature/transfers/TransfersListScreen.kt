@@ -25,10 +25,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.QrCodeScanner
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.ViewList
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -80,6 +85,10 @@ fun TransfersListScreen(
     var historialTarget by remember { mutableStateOf<TrasladoDto?>(null) }
     var historialItems by remember { mutableStateOf<List<HistorialEventoDto>>(emptyList()) }
     var historialLoading by remember { mutableStateOf(false) }
+    
+    // View state
+    var isKanbanView by remember { mutableStateOf(false) }
+    var isSearchExpanded by remember { mutableStateOf(false) }
 
     // Delete confirmation dialog
     deleteTarget?.let { transfer ->
@@ -177,6 +186,48 @@ fun TransfersListScreen(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    if (isSearchExpanded) {
+                        OutlinedTextField(
+                            value = state.searchQuery,
+                            onValueChange = onSearchChanged,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = 8.dp)
+                                .height(50.dp),
+                            placeholder = { Text("Buscar...", style = MaterialTheme.typography.bodyMedium) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent
+                            )
+                        )
+                    } else {
+                        Text(
+                            text = "Recogidas",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        isSearchExpanded = !isSearchExpanded
+                        if (!isSearchExpanded) onSearchChanged("")
+                    }) {
+                        Icon(if (isSearchExpanded) Icons.Rounded.Close else Icons.Rounded.Search, contentDescription = "Buscar")
+                    }
+                    IconButton(onClick = onScanQr) {
+                        Icon(Icons.Rounded.QrCodeScanner, contentDescription = "Escanear QR")
+                    }
+                    IconButton(onClick = { isKanbanView = !isKanbanView }) {
+                        Icon(if (isKanbanView) Icons.Rounded.ViewList else Icons.Rounded.Dashboard, contentDescription = "Cambiar vista")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateNew) {
                 Icon(Icons.Rounded.Add, contentDescription = "Nuevo traslado")
@@ -190,124 +241,82 @@ fun TransfersListScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
-            ) {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = "Recogidas",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = EcoTextStrong
-                        )
-                        Text(
-                            text = "Seguimiento y gestión de recogidas de residuos",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = EcoTextSubtle
-                        )
-                    }
-                }
-
-                // Prominent QR Scanner access
-                item {
-                    Surface(
-                        onClick = onScanQr,
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF3B82F6).copy(alpha = 0.08f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.QrCodeScanner,
-                                contentDescription = null,
-                                tint = Color(0xFF3B82F6),
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Escanear QR de traslado",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF3B82F6)
-                                )
-                                Text(
-                                    text = "Completar recogida escaneando el código",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = EcoTextMuted
-                                )
-                            }
-                            Text("›", style = MaterialTheme.typography.titleLarge, color = Color(0xFF3B82F6))
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Filtros de estado en bolitas
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    TRANSFER_STATES.forEach { status ->
+                        val isSelected = state.selectedStatus == status
+                        val color = when (status) {
+                            "PENDIENTE" -> Color(0xFFF59E0B)
+                            "EN_TRANSITO" -> Color(0xFF3B82F6)
+                            "ENTREGADO" -> Color(0xFF8B5CF6)
+                            "COMPLETADO" -> Color(0xFF10B981)
+                            else -> Color.Gray
                         }
-                    }
-                }
-
-                item {
-                    OutlinedTextField(
-                        value = state.searchQuery,
-                        onValueChange = onSearchChanged,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Buscar por código, productor, gestor, residuo...") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-
-                item {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        TRANSFER_STATES.forEach { status ->
-                            FilterChip(
-                                selected = state.selectedStatus == status,
-                                onClick = { onStatusFilter(status) },
-                                label = {
-                                    Text(
-                                        status.replace("_", " "),
-                                        style = MaterialTheme.typography.labelSmall
+                        Surface(
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = if (isSelected) color else color.copy(alpha = 0.2f),
+                            onClick = { onStatusFilter(if (isSelected) null else status) },
+                            modifier = Modifier.size(if (isSelected) 32.dp else 24.dp)
+                        ) {
+                            if (isSelected) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Rounded.Check,
+                                        contentDescription = status,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
-                            )
+                            }
                         }
                     }
                 }
 
                 if (state.errorMessage != null) {
-                    item {
-                        Text(
-                            text = state.errorMessage,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+                    Text(
+                        text = state.errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
 
-                // items con key: key identifica cada elemento para recomposición eficiente.
-                // Sin key, Compose recompone TODO al cambiar la lista.
-                items(state.filteredTransfers, key = { it.id }) { transfer ->
-                    TransferCard(
-                        transfer = transfer,
-                        onClick = { onTransferSelected(transfer.id) },
-                        onOpenStatusChange = { statusChangeTarget = transfer },
-                        onDelete = { deleteTarget = transfer },
-                        onViewHistorial = {
-                            historialTarget = transfer
-                            historialLoading = true
-                            onLoadHistorial?.invoke(transfer.id) { items ->
-                                historialItems = items
-                                historialLoading = false
-                            }
-                        }
+                if (isKanbanView) {
+                    TransfersKanbanView(
+                        transfers = state.filteredTransfers,
+                        onTransferSelected = onTransferSelected
                     )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        items(state.filteredTransfers, key = { it.id }) { transfer ->
+                            TransferCard(
+                                transfer = transfer,
+                                onClick = { onTransferSelected(transfer.id) },
+                                onOpenStatusChange = { statusChangeTarget = transfer },
+                                onDelete = { deleteTarget = transfer },
+                                onViewHistorial = {
+                                    historialTarget = transfer
+                                    historialLoading = true
+                                    onLoadHistorial?.invoke(transfer.id) { items ->
+                                        historialItems = items
+                                        historialLoading = false
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

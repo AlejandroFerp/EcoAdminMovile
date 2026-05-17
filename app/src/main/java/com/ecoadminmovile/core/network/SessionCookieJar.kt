@@ -27,11 +27,15 @@ class SessionCookieJar(
 ) : CookieJar { // `: CookieJar` = implementa la interfaz CookieJar
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         cookies
-            // firstOrNull: busca la primera cookie con ese nombre, devuelve null si no existe
             .firstOrNull { it.name == AppPreferences.SESSION_COOKIE_NAME }
-            // ?.let { }: solo ejecuta el bloque lambda si firstOrNull NO devolvió null
             ?.let { cookie ->
                 preferences.saveSessionCookie(cookie.value)
+            }
+        // Capturar XSRF-TOKEN para incluirlo en peticiones mutantes (POST/PUT/DELETE)
+        cookies
+            .firstOrNull { it.name == AppPreferences.XSRF_COOKIE_NAME }
+            ?.let { cookie ->
+                preferences.saveXsrfToken(cookie.value)
             }
     }
 

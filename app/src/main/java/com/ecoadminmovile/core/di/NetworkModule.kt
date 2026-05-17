@@ -18,6 +18,7 @@ package com.ecoadminmovile.core.di
 
 import android.content.Context
 import com.ecoadminmovile.BuildConfig
+import com.ecoadminmovile.core.network.CsrfInterceptor
 import com.ecoadminmovile.core.network.EcoAdminApi
 import com.ecoadminmovile.core.network.ServerUrlInterceptor
 import com.ecoadminmovile.core.network.SessionCookieJar
@@ -56,13 +57,14 @@ object NetworkModule { // object = Singleton en Kotlin (una sola instancia garan
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        cookieJar: SessionCookieJar
+        cookieJar: SessionCookieJar,
+        preferences: AppPreferences
     ): OkHttpClient {
         // apply { }: configura el objeto dentro del bloque y lo devuelve
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             // if como expresión: devuelve el valor directamente (no necesita ternario)
             level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BASIC
+                HttpLoggingInterceptor.Level.BODY // Cambiado de BASIC a BODY para ver JSON y headers
             } else {
                 HttpLoggingInterceptor.Level.NONE
             }
@@ -73,6 +75,7 @@ object NetworkModule { // object = Singleton en Kotlin (una sola instancia garan
             .followSslRedirects(false)
             .cookieJar(cookieJar)
             .addInterceptor(ServerUrlInterceptor())
+            .addInterceptor(CsrfInterceptor(preferences))
             .addInterceptor(loggingInterceptor)
             .build()
     }

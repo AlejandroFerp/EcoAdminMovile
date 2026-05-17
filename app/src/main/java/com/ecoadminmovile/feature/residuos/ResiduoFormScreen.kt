@@ -8,10 +8,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -19,15 +23,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ecoadminmovile.core.model.CentroDto
 import com.ecoadminmovile.core.model.ResiduoCreateDto
+import com.ecoadminmovile.data.CentersRepository
 import com.ecoadminmovile.data.ResiduosRepository
 import com.ecoadminmovile.ui.theme.EcoAdminTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,17 +48,20 @@ data class ResiduoFormUiState(
     val descripcion: String = "",
     val cantidad: String = "",
     val unidad: String = "",
+    val selectedCentroId: Long? = null,
+    val centros: List<CentroDto> = emptyList(),
     val isEditing: Boolean = false,
     val isSaving: Boolean = false,
     val savedSuccessfully: Boolean = false,
     val errorMessage: String? = null
 ) {
-    val isFormValid: Boolean get() = codigoLER.isNotBlank()
+    val isFormValid: Boolean get() = codigoLER.isNotBlank() && selectedCentroId != null
 }
 
 @HiltViewModel
 class ResiduoFormViewModel @Inject constructor(
-    private val repository: ResiduosRepository
+    private val repository: ResiduosRepository,
+    private val centersRepository: CentersRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResiduoFormUiState())
@@ -62,23 +70,36 @@ class ResiduoFormViewModel @Inject constructor(
     private var editingId: Long? = null
 
     fun initForm(residuoId: Long?) {
-        if (residuoId == null) return
-        editingId = residuoId
         viewModelScope.launch {
-            repository.load(residuoId).fold(
-                onSuccess = { r ->
-                    _uiState.update {
-                        it.copy(
-                            codigoLER = r.codigoLER.orEmpty(),
-                            descripcion = r.descripcion.orEmpty(),
-                            cantidad = r.cantidad?.toString().orEmpty(),
-                            unidad = r.unidad.orEmpty(),
-                            isEditing = true
-                        )
-                    }
-                },
-                onFailure = { err -> _uiState.update { it.copy(errorMessage = err.message) } }
-            )
+            val centersResult = centersRepository.loadCenters()
+            val centersList = centersResult.getOrDefault(emptyList())
+
+            _uiState.update { it.copy(centros = centersList) }
+
+            if (residuoId != null) {
+                editingId = residuoId
+                repository.load(residuoId).fold(
+                    onSuccess = { r ->
+                        _uiState.update {
+                            it.copy(
+                                codigoLER = r.codigoLER.orEmpty(),
+                                descripcion = r.descripcion.orEmpty(),
+                                cantidad = r.cantidad?.toString().orEmpty(),
+                                unidad = r.unidad.orEmpty(),
+                                selectedCentroId = r.centro?.id ?: centersList.firstOrNull()?.id,
+                                isEditing = true
+                            )
+                        }
+                    },
+                    onFailure = { err -> _uiState.update { it.copy(errorMessage = err.message) } }
+                )
+            } else {
+                _uiState.update {
+                    it.copy(
+                        selectedCentroId = centersList.firstOrNull()?.id
+                    )
+                }
+            }
         }
     }
 
@@ -86,6 +107,7 @@ class ResiduoFormViewModel @Inject constructor(
     fun onDescripcionChanged(value: String) { _uiState.update { it.copy(descripcion = value) } }
     fun onCantidadChanged(value: String) { _uiState.update { it.copy(cantidad = value) } }
     fun onUnidadChanged(value: String) { _uiState.update { it.copy(unidad = value) } }
+    fun onCentroIdChanged(value: Long?) { _uiState.update { it.copy(selectedCentroId = value) } }
 
     fun save() {
         val state = _uiState.value
@@ -93,10 +115,12 @@ class ResiduoFormViewModel @Inject constructor(
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
 
         val dto = ResiduoCreateDto(
+            centroId = state.selectedCentroId!!,
             codigoLER = state.codigoLER.trim(),
             descripcion = state.descripcion.trim().ifBlank { null },
             cantidad = state.cantidad.toDoubleOrNull(),
-            unidad = state.unidad.trim().ifBlank { null }
+            unidad = state.unidad.trim().ifBlank { null },
+            estado = "ALMACENADO"
         )
 
         viewModelScope.launch {
@@ -122,6 +146,7 @@ fun ResiduoFormScreen(
     onDescripcionChanged: (String) -> Unit,
     onCantidadChanged: (String) -> Unit,
     onUnidadChanged: (String) -> Unit,
+    onCentroIdChanged: (Long?) -> Unit,
     onSave: () -> Unit
 ) {
     LaunchedEffect(state.savedSuccessfully) {
@@ -148,6 +173,49 @@ fun ResiduoFormScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
+
+            var dropdownExpanded by remember { mutableStateOf(false) }
+            val selectedCentro = state.centros.firstOrNull { it.id == state.selectedCentroId }
+
+            Column {
+                Text(
+                    text = "Centro Asociado *",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+                ExposedDropdownMenuBox(
+                    expanded = dropdownExpanded,
+                    onExpandedChange = { dropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedCentro?.nombre.orEmpty(),
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false }
+                    ) {
+                        state.centros.forEach { centro ->
+                            DropdownMenuItem(
+                                text = { Text(centro.nombre.orEmpty()) },
+                                onClick = {
+                                    onCentroIdChanged(centro.id)
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = state.codigoLER,
@@ -218,6 +286,7 @@ fun ResiduoFormScreenNewPreview() {
             onDescripcionChanged = {},
             onCantidadChanged = {},
             onUnidadChanged = {},
+            onCentroIdChanged = {},
             onSave = {}
         )
     }
@@ -240,6 +309,7 @@ fun ResiduoFormScreenEditPreview() {
             onDescripcionChanged = {},
             onCantidadChanged = {},
             onUnidadChanged = {},
+            onCentroIdChanged = {},
             onSave = {}
         )
     }
@@ -259,6 +329,7 @@ fun ResiduoFormScreenErrorPreview() {
             onDescripcionChanged = {},
             onCantidadChanged = {},
             onUnidadChanged = {},
+            onCentroIdChanged = {},
             onSave = {}
         )
     }

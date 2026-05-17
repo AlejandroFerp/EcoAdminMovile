@@ -17,6 +17,7 @@ import androidx.lifecycle.viewModelScope
 import com.ecoadminmovile.core.model.CentroCreateDto
 import com.ecoadminmovile.core.model.CentroDto
 import com.ecoadminmovile.core.model.DireccionCreateDto
+import com.ecoadminmovile.core.model.DireccionDto
 import com.ecoadminmovile.data.CentersRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -118,23 +119,52 @@ class CenterFormViewModel @Inject constructor(
         val state = _uiState.value
         if (!state.isFormValid) return
 
-        val dto = CentroCreateDto(
-            nombre = state.nombre.trim(),
-            tipo = state.tipo,
-            nima = state.nima.trim().ifBlank { null },
-            telefono = state.telefono.trim().ifBlank { null },
-            email = state.email.trim().ifBlank { null },
-            nombreContacto = state.nombreContacto.trim().ifBlank { null },
-            direccion = DireccionCreateDto(
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+
+            val direccionDto = DireccionCreateDto(
                 calle = state.calle.trim().ifBlank { null },
                 ciudad = state.ciudad.trim().ifBlank { null },
                 provincia = state.provincia.trim().ifBlank { null },
                 codigoPostal = state.codigoPostal.trim().ifBlank { null }
-            ).takeIf { it.calle != null || it.ciudad != null || it.provincia != null || it.codigoPostal != null }
-        )
+            )
+            val hasAddress = direccionDto.calle != null || direccionDto.ciudad != null || direccionDto.provincia != null || direccionDto.codigoPostal != null
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+            var direccionId: Long? = null
+
+            if (hasAddress) {
+                val existingCenter = if (state.isEditing) {
+                    repository.loadCenter(state.editingCenterId!!).getOrNull()
+                } else null
+
+                val existingDireccionId = existingCenter?.direccion?.id
+
+                val addrResult = if (existingDireccionId != null) {
+                    repository.updateDireccion(existingDireccionId, direccionDto)
+                } else {
+                    repository.createDireccion(direccionDto)
+                }
+
+                addrResult.fold(
+                    onSuccess = { createdAddr ->
+                        direccionId = createdAddr.id
+                    },
+                    onFailure = { err ->
+                        _uiState.update { it.copy(isSaving = false, errorMessage = "Error al guardar dirección: ${err.message}") }
+                        return@launch
+                    }
+                )
+            }
+
+            val dto = CentroCreateDto(
+                nombre = state.nombre.trim(),
+                tipo = state.tipo,
+                direccionId = direccionId,
+                nima = state.nima.trim().ifBlank { null },
+                telefono = state.telefono.trim().ifBlank { null },
+                email = state.email.trim().ifBlank { null },
+                nombreContacto = state.nombreContacto.trim().ifBlank { null }
+            )
 
             val result = if (state.isEditing) {
                 repository.updateCenter(state.editingCenterId!!, dto)

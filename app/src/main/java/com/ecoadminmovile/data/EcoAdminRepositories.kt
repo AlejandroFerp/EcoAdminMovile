@@ -30,6 +30,8 @@ import com.ecoadminmovile.core.database.dao.TrasladoDao
 import com.ecoadminmovile.core.database.entity.PendingOperationEntity
 import com.ecoadminmovile.core.model.CentroCreateDto
 import com.ecoadminmovile.core.model.CentroDto
+import com.ecoadminmovile.core.model.DireccionCreateDto
+import com.ecoadminmovile.core.model.DireccionDto
 import com.ecoadminmovile.core.model.DocumentoDto
 import com.ecoadminmovile.core.model.EstadisticasDto
 import com.ecoadminmovile.core.model.HistorialEventoDto
@@ -209,6 +211,9 @@ open class TransfersRepository(
 
     suspend fun loadPdf(id: Long, tipo: String): Result<ResponseBody> =
         safeApiCall { api.getTransferPdf(id, tipo) }
+
+    suspend fun assignRuta(id: Long, rutaId: Long?): Result<TrasladoDto> =
+        safeApiCall { api.assignRuta(id, rutaId) }
 }
 
 open class CatalogRepository(
@@ -245,6 +250,12 @@ open class CentersRepository(
 
     suspend fun deleteCenter(id: Long): Result<Unit> =
         safeApiCall { api.deleteCentro(id) }
+
+    suspend fun createDireccion(direccion: DireccionCreateDto): Result<DireccionDto> =
+        safeApiCall { api.createDireccion(direccion) }
+
+    suspend fun updateDireccion(id: Long, direccion: DireccionCreateDto): Result<DireccionDto> =
+        safeApiCall { api.updateDireccion(id, direccion) }
 }
 
 open class ProfileRepository(
@@ -304,21 +315,21 @@ private suspend fun <T> safeApiCall(request: suspend () -> Response<T>): Result<
     return try {
         val response = request() // Invoca la lambda pasada como parámetro
 
-        when {
-            response.isSuccessful -> {
-                // ?.let { }: solo ejecuta el bloque si body() no es null
-                response.body()?.let { body ->
-                    Result.success(body)
-                } ?: Result.failure(ApiException("El servidor devolvio una respuesta vacia."))
+        if (response.isSuccessful) {
+            val body = response.body()
+            if (body != null) {
+                Result.success(body)
+            } else {
+                // Si es exitoso pero el body es null (común en DELETE 204 No Content), 
+                // devolvemos Unit. Si el llamador esperaba un objeto real, fallará 
+                // al intentar usarlo, lo cual es correcto.
+                @Suppress("UNCHECKED_CAST")
+                Result.success(Unit as T)
             }
-
-            response.isUnauthorizedRedirect() -> {
-                Result.failure(ApiException("Tu sesion ha caducado. Inicia sesion de nuevo."))
-            }
-
-            else -> {
-                Result.failure(ApiException(response.toHumanMessage()))
-            }
+        } else if (response.isUnauthorizedRedirect()) {
+            Result.failure(ApiException("Tu sesion ha caducado. Inicia sesion de nuevo."))
+        } else {
+            Result.failure(ApiException(response.toHumanMessage()))
         }
     } catch (ioException: IOException) {
         Result.failure(ApiException("No se pudo conectar con el backend de EcoAdmin."))

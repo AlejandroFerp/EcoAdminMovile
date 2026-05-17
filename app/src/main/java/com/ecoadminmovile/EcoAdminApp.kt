@@ -31,16 +31,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -50,6 +55,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -150,11 +158,54 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
             // Visibilidad del bottom bar: solo se muestra en los destinos principales
             val showBottomBar = topLevelDestinations.any { it.route == currentRoute }
 
+            // La TopAppBar global solo se muestra en rutas sin Scaffold propio (ej: perfil).
+            // Todas las demás pantallas gestionan su propia TopAppBar local.
+            val hideGlobalTopBar = currentRoute != "perfil"
+            var showGlobalMenu by remember { mutableStateOf(false) }
+
             Scaffold(
                 topBar = {
-                    TopAppBar(
-                        title = { Text(text = currentTitle) }
-                    )
+                    if (!hideGlobalTopBar) {
+                        TopAppBar(
+                            title = { Text(text = currentTitle) },
+                            navigationIcon = {
+                                if (currentRoute != null && topLevelDestinations.none { it.route == currentRoute }) {
+                                    IconButton(onClick = { navController.navigateUp() }) {
+                                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
+                                    }
+                                }
+                            },
+                            actions = {
+                                IconButton(onClick = { showGlobalMenu = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
+                                }
+                                DropdownMenu(
+                                    expanded = showGlobalMenu,
+                                    onDismissRequest = { showGlobalMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Mi Perfil") },
+                                        onClick = {
+                                            showGlobalMenu = false
+                                            navController.navigate("perfil")
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Cerrar Sesión") },
+                                        onClick = {
+                                            showGlobalMenu = false
+                                            appViewModel.logout()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("v1.0.0 (EcoAdmin)") },
+                                        onClick = { showGlobalMenu = false },
+                                        enabled = false
+                                    )
+                                }
+                            }
+                        )
+                    }
                 },
                 bottomBar = {
                     if (showBottomBar) {
@@ -459,13 +510,16 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onResiduoSelected = { /* detail not needed yet */ },
                             onCreateNew = { navController.navigate("residuo/form") },
                             onEdit = { id -> navController.navigate("residuo/form/$id") },
-                            onDelete = { id -> residuosViewModel.delete(id) }
+                            onDelete = { id -> residuosViewModel.delete(id) },
+                            onBack = { navController.popBackStack() }
                         )
                     }
 
                     composable("residuo/form") {
                         val formViewModel: ResiduoFormViewModel = hiltViewModel()
                         val formState by formViewModel.uiState.collectAsStateWithLifecycle()
+
+                        LaunchedEffect(Unit) { formViewModel.initForm(null) }
 
                         ResiduoFormScreen(
                             state = formState,
@@ -474,6 +528,7 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onDescripcionChanged = formViewModel::onDescripcionChanged,
                             onCantidadChanged = formViewModel::onCantidadChanged,
                             onUnidadChanged = formViewModel::onUnidadChanged,
+                            onCentroIdChanged = formViewModel::onCentroIdChanged,
                             onSave = formViewModel::save
                         )
                     }
@@ -495,6 +550,7 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onDescripcionChanged = formViewModel::onDescripcionChanged,
                             onCantidadChanged = formViewModel::onCantidadChanged,
                             onUnidadChanged = formViewModel::onUnidadChanged,
+                            onCentroIdChanged = formViewModel::onCentroIdChanged,
                             onSave = formViewModel::save
                         )
                     }
@@ -508,7 +564,9 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             state = documentosState,
                             onRefresh = documentosViewModel::load,
                             onFilterChanged = documentosViewModel::filterByTipo,
-                            onOpenDocument = { /* open URL externally if needed */ }
+                            onSearchChanged = documentosViewModel::updateSearch,
+                            onOpenDocument = { /* open URL externally if needed */ },
+                            onBack = { navController.popBackStack() }
                         )
                     }
 
@@ -524,7 +582,8 @@ fun EcoAdminApp(appViewModel: AppViewModel = hiltViewModel()) { // hiltViewModel
                             onRutaSelected = { /* detail not needed yet */ },
                             onCreateNew = { navController.navigate("ruta/form") },
                             onEdit = { id -> navController.navigate("ruta/form/$id") },
-                            onDelete = { id -> rutasViewModel.delete(id) }
+                            onDelete = { id -> rutasViewModel.delete(id) },
+                            onBack = { navController.popBackStack() }
                         )
                     }
 

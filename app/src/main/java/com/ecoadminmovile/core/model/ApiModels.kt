@@ -128,7 +128,8 @@ data class ResiduoDto(
     val codigoLER: String? = null,
     val descripcion: String? = null,
     val cantidad: Double? = null,
-    val unidad: String? = null
+    val unidad: String? = null,
+    val centro: CentroResumenDto? = null
 )
 
 data class HistorialEventoDto(
@@ -158,7 +159,7 @@ data class CentroCreateDto(
     val telefono: String? = null,
     val email: String? = null,
     val nombreContacto: String? = null,
-    val direccion: DireccionCreateDto? = null
+    val direccionId: Long? = null
 )
 
 data class DireccionCreateDto(
@@ -182,10 +183,14 @@ data class PasswordChangeDto(
 )
 
 data class ResiduoCreateDto(
+    val centroId: Long,
     val codigoLER: String,
     val descripcion: String? = null,
     val cantidad: Double? = null,
-    val unidad: String? = null
+    val unidad: String? = null,
+    val estado: String? = null,
+    val fechaEntradaAlmacen: String? = null,
+    val diasMaximoAlmacenamiento: Int? = null
 )
 
 data class DocumentoDto(

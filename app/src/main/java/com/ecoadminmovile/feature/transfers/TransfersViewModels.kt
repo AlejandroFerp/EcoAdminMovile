@@ -122,14 +122,15 @@ class TransfersViewModel @Inject constructor(
 
     private fun applyFilters() {
         _uiState.update { state ->
+            val normalizedQuery = state.searchQuery.replace(" ", "").lowercase()
             val filtered = state.transfers.filter { transfer ->
                 val matchesSearch = state.searchQuery.isBlank() ||
-                    transfer.codigo?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    transfer.centroProductor?.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    transfer.centroGestor?.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    transfer.residuo?.descripcion?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    transfer.residuo?.codigoLER?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    transfer.estado?.contains(state.searchQuery, ignoreCase = true) == true
+                    transfer.codigo?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    transfer.centroProductor?.nombre?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    transfer.centroGestor?.nombre?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    transfer.residuo?.descripcion?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    transfer.residuo?.codigoLER?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    transfer.estado?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true
 
                 val matchesStatus = state.selectedStatus == null ||
                     transfer.estado.equals(state.selectedStatus, ignoreCase = true)
@@ -319,14 +320,10 @@ class TransferFormViewModel @Inject constructor(
         if (!state.isFormValid) return
 
         val dto = TrasladoCreateDto(
-            // !! (non-null assertion): garantiza que el valor NO es null.
-            // Si fuera null, lanzaría NullPointerException. Aquí es seguro por isFormValid.
             centroProductorId = state.selectedProductorId!!,
             centroGestorId = state.selectedGestorId!!,
             residuoId = state.selectedResiduoId!!,
             transportistaId = state.selectedTransportistaId,
-            rutaId = state.selectedRutaId,
-            // .ifBlank { null }: si el String está vacío o solo espacios, devuelve null
             observaciones = state.observaciones.ifBlank { null }
         )
 
@@ -340,8 +337,20 @@ class TransferFormViewModel @Inject constructor(
             }
 
             result.fold(
-                onSuccess = {
-                    _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
+                onSuccess = { createdTransfer ->
+                    val transferId = createdTransfer.id
+                    if (state.selectedRutaId != null) {
+                        repository.assignRuta(transferId, state.selectedRutaId).fold(
+                            onSuccess = {
+                                _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
+                            },
+                            onFailure = { err ->
+                                _uiState.update { it.copy(isSaving = false, errorMessage = "Traslado guardado, pero error al asignar ruta: ${err.message}") }
+                            }
+                        )
+                    } else {
+                        _uiState.update { it.copy(isSaving = false, savedSuccessfully = true) }
+                    }
                 },
                 onFailure = { throwable ->
                     _uiState.update { it.copy(isSaving = false, errorMessage = throwable.message) }

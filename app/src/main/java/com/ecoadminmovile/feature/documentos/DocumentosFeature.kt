@@ -1,5 +1,7 @@
 package com.ecoadminmovile.feature.documentos
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,19 +14,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -50,11 +62,22 @@ data class DocumentosUiState(
     val documentos: List<DocumentoDto> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val tipoFilter: String? = null
+    val tipoFilter: String? = null,
+    val searchQuery: String = ""
 ) {
     val filteredDocumentos: List<DocumentoDto>
-        get() = if (tipoFilter == null) documentos
-        else documentos.filter { it.tipo.equals(tipoFilter, ignoreCase = true) }
+        get() = documentos.filter { doc ->
+            val matchesFilter = tipoFilter == null || doc.tipo.equals(tipoFilter, ignoreCase = true)
+            val matchesQuery = if (searchQuery.isBlank()) {
+                true
+            } else {
+                val normalizedQuery = searchQuery.replace(" ", "").lowercase()
+                val normalizedNombre = doc.nombre.replace(" ", "").lowercase()
+                val normalizedTipo = tipoLabel(doc.tipo).replace(" ", "").lowercase()
+                normalizedNombre.contains(normalizedQuery) || normalizedTipo.contains(normalizedQuery)
+            }
+            matchesFilter && matchesQuery
+        }
 
     val tiposDisponibles: List<String>
         get() = documentos.map { it.tipo }.distinct().sorted()
@@ -85,9 +108,11 @@ class DocumentosViewModel @Inject constructor(
     fun filterByTipo(tipo: String?) {
         _uiState.update { it.copy(tipoFilter = tipo) }
     }
-}
 
-// --- Screen ---
+    fun updateSearch(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,32 +120,58 @@ fun DocumentosListScreen(
     state: DocumentosUiState,
     onRefresh: () -> Unit,
     onFilterChanged: (String?) -> Unit,
-    onOpenDocument: (DocumentoDto) -> Unit
+    onSearchChanged: (String) -> Unit,
+    onOpenDocument: (DocumentoDto) -> Unit,
+    onBack: () -> Unit = {}
 ) {
-    PullToRefreshBox(isRefreshing = state.isLoading, onRefresh = onRefresh) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Documentos",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = EcoTextStrong
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+    var isSearchExpanded by remember { mutableStateOf(false) }
 
-            // Filter chips by document type
-            if (state.tiposDisponibles.isNotEmpty()) {
-                item {
+    Scaffold(
+        topBar = {
+            Column {
+                TopAppBar(
+                    title = {
+                        if (isSearchExpanded) {
+                            OutlinedTextField(
+                                value = state.searchQuery,
+                                onValueChange = onSearchChanged,
+                                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                                placeholder = { Text("Buscar...", style = MaterialTheme.typography.bodyMedium) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(24.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedBorderColor = Color.Transparent
+                                )
+                            )
+                        } else {
+                            Text("Documentos", fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Rounded.ArrowBack, contentDescription = "Atrás")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            isSearchExpanded = !isSearchExpanded
+                            if (!isSearchExpanded) onSearchChanged("")
+                        }) {
+                            Icon(if (isSearchExpanded) Icons.Rounded.Close else Icons.Rounded.Search, contentDescription = "Buscar")
+                        }
+                    }
+                )
+                // Filter chips ALWAYS pinned at topbar!
+                if (state.tiposDisponibles.isNotEmpty()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         FilterChip(
                             selected = state.tipoFilter == null,
@@ -135,33 +186,49 @@ fun DocumentosListScreen(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
-
-            if (state.errorMessage != null) {
-                item {
-                    Text(
-                        text = state.errorMessage,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            if (!state.isLoading && state.filteredDocumentos.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
-                        Text("No hay documentos disponibles", color = EcoTextMuted)
+        }
+    ) { innerPadding ->
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (state.errorMessage != null) {
+                        item {
+                            Text(
+                                text = state.errorMessage,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
+
+                    if (!state.isLoading && state.filteredDocumentos.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
+                                Text("No hay documentos disponibles", color = EcoTextMuted)
+                            }
+                        }
+                    }
+
+                    items(state.filteredDocumentos, key = { it.id }) { documento ->
+                        DocumentoCard(documento = documento, onOpen = { onOpenDocument(documento) })
+                    }
+
                 }
             }
-
-            items(state.filteredDocumentos, key = { it.id }) { documento ->
-                DocumentoCard(documento = documento, onOpen = { onOpenDocument(documento) })
-            }
-
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 }
@@ -242,6 +309,7 @@ fun DocumentosListScreenPreview() {
             state = DocumentosUiState(documentos = sampleDocumentos),
             onRefresh = {},
             onFilterChanged = {},
+            onSearchChanged = {},
             onOpenDocument = {}
         )
     }
@@ -255,6 +323,7 @@ fun DocumentosListEmptyPreview() {
             state = DocumentosUiState(),
             onRefresh = {},
             onFilterChanged = {},
+            onSearchChanged = {},
             onOpenDocument = {}
         )
     }
@@ -271,6 +340,7 @@ fun DocumentosListFilteredPreview() {
             ),
             onRefresh = {},
             onFilterChanged = {},
+            onSearchChanged = {},
             onOpenDocument = {}
         )
     }

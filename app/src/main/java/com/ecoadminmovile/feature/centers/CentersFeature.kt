@@ -17,21 +17,31 @@
  */
 package com.ecoadminmovile.feature.centers
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -108,14 +118,13 @@ class CentersViewModel @Inject constructor(
 
     private fun applyFilters() {
         _uiState.update { state ->
+            val normalizedQuery = state.searchQuery.replace(" ", "").lowercase()
             val filtered = state.centers.filter { center ->
                 val matchesSearch = state.searchQuery.isBlank() ||
-                    center.nombre?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    center.codigo?.contains(state.searchQuery, ignoreCase = true) == true ||
-                    center.nima?.contains(state.searchQuery, ignoreCase = true) == true
+                    center.nombre?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    center.codigo?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true ||
+                    center.nima?.replace(" ", "")?.contains(normalizedQuery, ignoreCase = true) == true
 
-                // .equals(..., ignoreCase = true): comparación sin distinguir mayúsculas/minúsculas.
-                // Named parameter ignoreCase mejora legibilidad.
                 val matchesType = state.selectedType == null ||
                     center.tipo.equals(state.selectedType, ignoreCase = true)
 
@@ -136,82 +145,95 @@ fun CentersScreen(
     onCenterSelected: (Long) -> Unit = {},
     onCreateNew: () -> Unit = {}
 ) {
-    PullToRefreshBox(
-        isRefreshing = state.isLoading,
-        onRefresh = onRefresh,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        LazyColumn(
+    var isSearchExpanded by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            Column {
+                TopAppBar(
+                    title = {
+                        if (isSearchExpanded) {
+                            OutlinedTextField(
+                                value = state.searchQuery,
+                                onValueChange = onSearchChanged,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(end = 8.dp),
+                                placeholder = { Text("Buscar...", style = MaterialTheme.typography.bodyMedium) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(24.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color.Transparent,
+                                    unfocusedBorderColor = Color.Transparent
+                                )
+                            )
+                        } else {
+                            Text("Centros", fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            isSearchExpanded = !isSearchExpanded
+                            if (!isSearchExpanded) onSearchChanged("")
+                        }) {
+                            Icon(if (isSearchExpanded) Icons.Rounded.Close else Icons.Rounded.Search, contentDescription = "Buscar")
+                        }
+                    }
+                )
+                // Filter chips ALWAYS pinned at topbar!
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CENTER_TYPES.forEach { type ->
+                        FilterChip(
+                            selected = state.selectedType == type,
+                            onClick = { onTypeFilter(type) },
+                            label = { Text(type, style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onCreateNew) {
+                Icon(Icons.Rounded.Add, contentDescription = "Nuevo")
+            }
+        }
+    ) { innerPadding ->
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
+                .padding(innerPadding)
         ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "Centros",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = EcoTextStrong
-                    )
-                    Text(
-                        text = "Gestión de productores y gestores",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = EcoTextSubtle
-                    )
+                if (state.errorMessage != null) {
+                    item {
+                        Text(
+                            text = state.errorMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
-                FilledTonalButton(onClick = onCreateNew) {
-                    Text("+ Nuevo")
+
+                items(state.filteredCenters, key = { center -> center.id }) { center ->
+                    CenterCard(center = center, onClick = { onCenterSelected(center.id) })
                 }
             }
-        }
-
-        item {
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = onSearchChanged,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Buscar por nombre, código, NIMA...") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
-        }
-
-        item {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                CENTER_TYPES.forEach { type ->
-                    FilterChip(
-                        selected = state.selectedType == type,
-                        onClick = { onTypeFilter(type) },
-                        label = { Text(type, style = MaterialTheme.typography.labelSmall) }
-                    )
-                }
-            }
-        }
-
-        if (state.errorMessage != null) {
-            item {
-                Text(
-                    text = state.errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-
-        items(state.filteredCenters, key = { center -> center.id }) { center ->
-            CenterCard(center = center, onClick = { onCenterSelected(center.id) })
-        }
         }
     }
 }

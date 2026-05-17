@@ -39,6 +39,17 @@ open class AppPreferences(context: Context) {
     open fun clearSession() {
         sharedPreferences.edit()
             .remove(KEY_SESSION_COOKIE)
+            .remove(KEY_XSRF_TOKEN)
+            .apply()
+    }
+
+    fun getXsrfToken(): String? {
+        return sharedPreferences.getString(KEY_XSRF_TOKEN, null)
+    }
+
+    fun saveXsrfToken(value: String) {
+        sharedPreferences.edit()
+            .putString(KEY_XSRF_TOKEN, value)
             .apply()
     }
 
@@ -47,6 +58,8 @@ open class AppPreferences(context: Context) {
         // const val: constante de compilación, se inlinea donde se use (más eficiente que val)
         private const val PREFERENCES_NAME = "ecoadmin_preferences"
         private const val KEY_SESSION_COOKIE = "session_cookie"
+        private const val KEY_XSRF_TOKEN = "xsrf_token"
         const val SESSION_COOKIE_NAME = "JSESSIONID"
+        const val XSRF_COOKIE_NAME = "XSRF-TOKEN"
     }
 }

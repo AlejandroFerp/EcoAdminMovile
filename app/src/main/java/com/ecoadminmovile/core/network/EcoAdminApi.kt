@@ -17,6 +17,8 @@ package com.ecoadminmovile.core.network
 
 import com.ecoadminmovile.core.model.CentroCreateDto
 import com.ecoadminmovile.core.model.CentroDto
+import com.ecoadminmovile.core.model.DireccionCreateDto
+import com.ecoadminmovile.core.model.DireccionDto
 import com.ecoadminmovile.core.model.DocumentoDto
 import com.ecoadminmovile.core.model.EstadisticasDto
 import com.ecoadminmovile.core.model.HistorialEventoDto
@@ -37,6 +39,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -81,12 +84,17 @@ interface EcoAdminApi {
     @DELETE("api/traslados/{id}")
     suspend fun deleteTraslado(@Path("id") id: Long): Response<Unit> // Unit = void en Kotlin
 
-    @FormUrlEncoded
-    @PUT("api/traslados/{id}/estado")
+    @PATCH("api/traslados/{id}/estado")
     suspend fun updateTransferStatus(
         @Path("id") id: Long,
-        @Field("estado") estado: String,
-        @Field("comentario") comentario: String? = null // Parámetro opcional nullable con default null
+        @Query("estado") estado: String,
+        @Query("comentario") comentario: String? = null // Parámetro opcional nullable con default null
+    ): Response<TrasladoDto>
+
+    @PATCH("api/traslados/{id}/ruta")
+    suspend fun assignRuta(
+        @Path("id") id: Long,
+        @Query("rutaId") rutaId: Long?
     ): Response<TrasladoDto>
 
     @GET("api/traslados/{id}/historial")
@@ -160,4 +168,11 @@ interface EcoAdminApi {
 
     @DELETE("api/rutas/{id}")
     suspend fun deleteRuta(@Path("id") id: Long): Response<Unit>
+
+    // --- Direcciones ---
+    @POST("api/direcciones")
+    suspend fun createDireccion(@Body body: DireccionCreateDto): Response<DireccionDto>
+
+    @PUT("api/direcciones/{id}")
+    suspend fun updateDireccion(@Path("id") id: Long, @Body body: DireccionCreateDto): Response<DireccionDto>
 }

@@ -173,17 +173,35 @@ fun DashboardScreen(
     onNavigateToRutas: () -> Unit = {}
 ) {
     // PullToRefreshBox: componente que permite "tirar hacia abajo" para refrescar
-    PullToRefreshBox(
-        isRefreshing = state.isLoading,
-        onRefresh = onRefresh,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // LazyColumn: lista virtualizada (solo renderiza elementos visibles, como RecyclerView)
-        // item {} y items {} son parte del DSL (Domain-Specific Language) de LazyColumn
-        LazyColumn(
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("EcoAdmin", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onNavigateToResiduos) {
+                        Icon(Icons.Rounded.Science, contentDescription = "Residuos")
+                    }
+                    IconButton(onClick = onNavigateToDocumentos) {
+                        Icon(Icons.Rounded.Description, contentDescription = "Documentos")
+                    }
+                    IconButton(onClick = onNavigateToRutas) {
+                        Icon(Icons.Rounded.Route, contentDescription = "Rutas")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
+                .padding(innerPadding)
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
@@ -439,56 +457,7 @@ fun DashboardScreen(
                 }
             }
         }
-
-        // Quick-access section for Residuos, Documentos, Rutas
-        item {
-            Text(
-                text = "Gestión",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = EcoTextStrong,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                EcoCard(modifier = Modifier.weight(1f), onClick = onNavigateToResiduos) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Rounded.Science, contentDescription = null, tint = EcoMetricResiduosIcon)
-                        Text("Residuos", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
-                EcoCard(modifier = Modifier.weight(1f), onClick = onNavigateToDocumentos) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Rounded.Description, contentDescription = null, tint = EcoMetricPendingIcon)
-                        Text("Documentos", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
-                EcoCard(modifier = Modifier.weight(1f), onClick = onNavigateToRutas) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Rounded.Route, contentDescription = null, tint = EcoMetricTransitIcon)
-                        Text("Rutas", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
             }
-        }
-
         }
     }
 }
